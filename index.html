@@ -20,19 +20,22 @@
 
         <!-- 순번 관리 섹션 -->
         <section class="order-management">
-            <button class="btn btn-white" id="addOrderBtn">순번 추가</button>
-            <button class="btn btn-white" id="manageOrderBtn">순번 관리</button>
-            <button class="btn btn-white" id="countManageBtn">카운트 관리</button>
+            <button class="btn btn-white" id="addOrderBtn">순번<br>추가</button>
+            <button class="btn btn-white" id="manageOrderBtn">순번<br>관리</button>
+            <button class="btn btn-white" id="countManageBtn">카운트<br>관리</button>
         </section>
 
         <!-- 개통순번 선택 영역 -->
         <section class="order-selection">
             <div class="order-header">
                 <h2>개통순번</h2>
-                <div class="header-stats">
-                    <span class="weekly-count" id="weeklyCount">개통갯수: 주간 0건</span>
-                    <span class="current-turn" id="currentTurn">현재순번: -</span>
+                <div class="count-toggle" id="countToggle">
+                    <span class="toggle-label">개통갯수:</span>
+                    <span class="toggle-period active" data-period="today">일간</span>
+                    <span class="toggle-period" data-period="week">주간</span>
+                    <span class="toggle-period" data-period="month">월간</span>
                 </div>
+                <span class="current-turn" id="currentTurn">현재순번: -</span>
             </div>
             <div class="order-grid" id="orderGrid">
                 <!-- 동적으로 생성될 순번 버튼들 -->

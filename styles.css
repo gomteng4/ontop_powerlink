@@ -76,6 +76,8 @@ body {
     max-width: 100px;
     border: 2px solid #03C75A;
     font-size: 14px;
+    line-height: 1.3;
+    min-height: 50px;
 }
 
 .btn-white:hover {
@@ -94,6 +96,7 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 15px;
+    gap: 15px;
 }
 
 .order-selection h2 {
@@ -101,22 +104,46 @@ body {
     font-weight: 700;
     margin: 0;
     color: #333;
+    flex-shrink: 0;
 }
 
-.header-stats {
+.count-toggle {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    justify-content: center;
 }
 
-.weekly-count {
+.toggle-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-right: 4px;
+}
+
+.toggle-period {
     font-size: 12px;
     font-weight: 500;
     color: #666;
     background: #f8f9fa;
     padding: 4px 8px;
-    border-radius: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid #e0e0e0;
+}
+
+.toggle-period:hover {
+    background: #e8f5ed;
+    color: #03C75A;
+    border-color: #03C75A;
+}
+
+.toggle-period.active {
+    background: #03C75A;
+    color: white;
+    border-color: #03C75A;
 }
 
 .current-turn {
@@ -127,6 +154,7 @@ body {
     padding: 6px 12px;
     border-radius: 15px;
     animation: pulse 2s infinite;
+    flex-shrink: 0;
 }
 
 @keyframes pulse {
@@ -652,6 +680,8 @@ body {
         max-width: 90px;
         font-size: 13px;
         padding: 10px 16px;
+        line-height: 1.2;
+        min-height: 48px;
     }
     
     .order-header {
@@ -660,13 +690,18 @@ body {
         gap: 8px;
     }
     
-    .header-stats {
-        align-items: flex-start;
-        gap: 2px;
+    .count-toggle {
+        justify-content: flex-start;
+        gap: 4px;
     }
     
-    .weekly-count {
+    .toggle-label {
+        font-size: 13px;
+    }
+    
+    .toggle-period {
         font-size: 11px;
+        padding: 3px 6px;
     }
     
     .current-turn {
@@ -713,5 +748,7 @@ body {
     .btn-white {
         max-width: 120px;
         font-size: 16px;
+        line-height: 1.3;
+        min-height: 52px;
     }
 } 

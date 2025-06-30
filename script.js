@@ -23,6 +23,7 @@ let currentTurn = '';
 let people = {};
 let activations = {};
 let editingOrderIndex = -1;
+let currentPeriod = 'today'; // 기본값: 일간
 
 // DOM 요소
 const addOrderBtn = document.getElementById('addOrderBtn');
@@ -37,7 +38,7 @@ const modalBody = document.getElementById('modalBody');
 const toast = document.getElementById('toast');
 const toastMessage = document.getElementById('toastMessage');
 const currentTurnElement = document.getElementById('currentTurn');
-const weeklyCountElement = document.getElementById('weeklyCount');
+const countToggleElement = document.getElementById('countToggle');
 
 // 폼 요소
 const customerNameInput = document.getElementById('customerName');
@@ -56,7 +57,6 @@ function initializeApp() {
     loadFormData();
     bindEvents();
     setupFirebaseListeners();
-    updateWeeklyCount(); // 초기 주간 통계 표시
 }
 
 // 오늘 날짜 설정
@@ -93,7 +93,7 @@ function setupFirebaseListeners() {
     // 개통 기록 리스너
     database.ref('activations').on('value', (snapshot) => {
         activations = snapshot.val() || {};
-        updateWeeklyCount();
+        renderOrderGrid(); // 카운트 업데이트를 위해 그리드 새로고침
     });
 }
 
@@ -106,11 +106,10 @@ function updateCurrentTurnDisplay() {
     }
 }
 
-// 주간 개통량 표시 업데이트
-function updateWeeklyCount() {
+// 선택된 기간의 개인별 카운트 가져오기
+function getPersonCount(personName, period) {
     const stats = calculateStats();
-    const weeklyTotal = stats.week.total;
-    weeklyCountElement.textContent = `개통갯수: 주간 ${weeklyTotal}건`;
+    return stats[period].people[personName] || 0;
 }
 
 // 폼 데이터 로드
@@ -179,6 +178,23 @@ function bindEvents() {
         }
     });
 
+    // 기간 전환 버튼 이벤트
+    countToggleElement.addEventListener('click', function(e) {
+        if (e.target.classList.contains('toggle-period')) {
+            // 기존 활성화 제거
+            document.querySelectorAll('.toggle-period').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 새로 선택된 기간 활성화
+            e.target.classList.add('active');
+            currentPeriod = e.target.dataset.period;
+            
+            // 순번 그리드 새로고침 (카운트 업데이트)
+            renderOrderGrid();
+        }
+    });
+
     // 키보드 단축키
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && modal.style.display === 'flex') {
@@ -209,14 +225,19 @@ function renderOrderGrid() {
             button.classList.add('current-turn');
         }
         
-        // 선택된 상태인지 확인
+        // 선택된 상태인지 확인 (선택 버그 수정)
         if (name === selectedOrder) {
             button.classList.add('selected');
         }
         
+        // 선택된 기간에 맞는 카운트 표시
+        const periodCount = getPersonCount(name, currentPeriod);
+        const periodText = currentPeriod === 'today' ? '일간' : 
+                          currentPeriod === 'week' ? '주간' : '월간';
+        
         button.innerHTML = `
             <div class="name">${name}</div>
-            <div class="count">${data.count || 0}건 완료</div>
+            <div class="count">${periodText} ${periodCount}건</div>
         `;
         
         button.addEventListener('click', () => selectOrder(name));
@@ -243,17 +264,20 @@ function renderOrderGrid() {
 
 // 순번 선택
 function selectOrder(orderName) {
-    if (selectedOrder === orderName) {
+    const wasSelected = selectedOrder === orderName;
+    
+    if (wasSelected) {
         selectedOrder = '';
+        showToast(`${orderName} 선택 해제됨`);
     } else {
         selectedOrder = orderName;
+        showToast(`${orderName} 선택됨`);
     }
     
     // Firebase에 선택 상태 업데이트
     database.ref('selectedPerson').set(selectedOrder);
     
     saveFormData();
-    showToast(`${orderName} ${selectedOrder ? '선택됨' : '선택 해제됨'}`);
 }
 
 // 순번 추가 모달 표시
