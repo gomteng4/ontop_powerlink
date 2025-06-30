@@ -215,6 +215,33 @@ body {
     border-color: #02B34A;
 }
 
+/* 구글 시트 바로가기 버튼 */
+.btn-sheet {
+    background: white;
+    color: #03C75A;
+    width: 100%;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 14px;
+    margin-top: 15px;
+    border: 2px solid #03C75A;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.btn-sheet:hover {
+    background: #e8f5ed;
+    color: #02B34A;
+    border-color: #02B34A;
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(3, 199, 90, 0.2);
+}
+
 /* 모달 */
 .modal {
     position: fixed;
@@ -423,6 +450,11 @@ body {
     .btn-save {
         font-size: 16px;
         padding: 14px;
+    }
+    
+    .btn-sheet {
+        font-size: 14px;
+        padding: 12px;
     }
 }
 
