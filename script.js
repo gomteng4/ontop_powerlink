@@ -401,12 +401,33 @@ function showManageOrderModal() {
     
     modalTitle.textContent = '순번 관리';
     
-    let html = '<div class="order-list">';
+    let html = `
+        <div class="turn-management">
+            <h4>🎯 현재 차례 관리</h4>
+            <div class="current-turn-section">
+                <div class="current-turn-info">
+                    현재 차례: <strong style="color: #03C75A;">${currentTurn || '없음'}</strong>
+                </div>
+                <div class="turn-actions">
+                    <button class="change-turn-btn" onclick="showChangeTurnModal()">차례 변경</button>
+                    <button class="reset-turn-btn" onclick="resetCurrentTurn()">처음부터</button>
+                </div>
+            </div>
+        </div>
+        <div class="order-list">
+    `;
+    
     peopleList.sort((a, b) => people[a].order - people[b].order).forEach((name, index) => {
+        const isCurrent = name === currentTurn;
         html += `
-            <div class="order-item">
-                <span class="order-item-name">${name} (${people[name].count || 0}건)</span>
+            <div class="order-item ${isCurrent ? 'current-person' : ''}">
+                <span class="order-item-name">
+                    ${name} (${people[name].count || 0}건) ${isCurrent ? '👑' : ''}
+                </span>
                 <div class="order-item-actions">
+                    <button class="turn-btn ${isCurrent ? 'current' : ''}" onclick="setCurrentTurn('${name}')" ${isCurrent ? 'disabled' : ''}>
+                        ${isCurrent ? '현재차례' : '차례설정'}
+                    </button>
                     <button class="count-btn" onclick="editCount('${name}')">카운트</button>
                     <button class="edit-btn" onclick="editOrder('${name}')">수정</button>
                     <button class="delete-btn" onclick="deleteOrder('${name}')">삭제</button>
@@ -414,6 +435,7 @@ function showManageOrderModal() {
             </div>
         `;
     });
+    
     html += '</div>';
     
     modalBody.innerHTML = html;
@@ -577,6 +599,80 @@ async function deleteOrder(name) {
     }
 }
 
+// 현재 차례 설정
+async function setCurrentTurn(name) {
+    try {
+        console.log(`현재 차례 변경: ${currentTurn} -> ${name}`);
+        await database.ref('currentTurn').set(name);
+        showManageOrderModal();
+        showToast(`현재 차례가 ${name}로 변경되었습니다`);
+    } catch (error) {
+        console.error('차례 변경 오류:', error);
+        showToast('차례 변경 중 오류가 발생했습니다');
+    }
+}
+
+// 차례 변경 모달
+function showChangeTurnModal() {
+    modalTitle.textContent = '차례 변경';
+    
+    const peopleList = Object.keys(people).sort((a, b) => people[a].order - people[b].order);
+    
+    let html = `
+        <div class="change-turn-section">
+            <h4>누구 차례로 변경하시겠습니까?</h4>
+            <div class="turn-select-list">
+    `;
+    
+    peopleList.forEach((name) => {
+        const isCurrent = name === currentTurn;
+        html += `
+            <button class="turn-select-btn ${isCurrent ? 'current' : ''}" 
+                    onclick="setCurrentTurn('${name}')" 
+                    ${isCurrent ? 'disabled' : ''}>
+                <span class="turn-name">${name}</span>
+                <span class="turn-status">${isCurrent ? '현재 차례' : '차례 설정'}</span>
+            </button>
+        `;
+    });
+    
+    html += `
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="modal-btn" onclick="showManageOrderModal()">취소</button>
+            </div>
+        </div>
+    `;
+    
+    modalBody.innerHTML = html;
+}
+
+// 차례 초기화 (첫 번째 사람으로)
+async function resetCurrentTurn() {
+    const peopleList = Object.keys(people).sort((a, b) => people[a].order - people[b].order);
+    
+    if (peopleList.length === 0) {
+        showToast('순번이 없습니다');
+        return;
+    }
+    
+    const firstPerson = peopleList[0];
+    
+    if (!confirm(`차례를 처음부터 시작하시겠습니까?\n(${firstPerson}부터 시작)`)) {
+        return;
+    }
+    
+    try {
+        console.log(`차례 초기화: ${currentTurn} -> ${firstPerson}`);
+        await database.ref('currentTurn').set(firstPerson);
+        showManageOrderModal();
+        showToast(`차례가 초기화되었습니다 (${firstPerson}부터 시작)`);
+    } catch (error) {
+        console.error('차례 초기화 오류:', error);
+        showToast('차례 초기화 중 오류가 발생했습니다');
+    }
+}
+
 // 저장 처리
 async function handleSave() {
     if (!validateForm()) {
@@ -601,18 +697,23 @@ async function handleSave() {
         await database.ref('activations').push(data);
         console.log('activations 저장 완료');
         
-        // 개통량 카운트 증가 (디버깅 추가)
+        // 개통량 카운트 증가 (강화된 버전)
         if (people[selectedOrder]) {
             const currentCount = people[selectedOrder].count || 0;
             const newCount = currentCount + 1;
             console.log(`카운트 업데이트: ${selectedOrder} ${currentCount} -> ${newCount}`);
             
-            await database.ref(`people/${selectedOrder}/count`).set(newCount);
-            console.log('카운트 업데이트 완료');
+            // Firebase 트랜잭션으로 안전한 카운트 업데이트
+            await database.ref(`people/${selectedOrder}/count`).transaction((current) => {
+                console.log('트랜잭션 실행:', current, '->', (current || 0) + 1);
+                return (current || 0) + 1;
+            });
             
+            console.log('카운트 업데이트 완료 (트랜잭션)');
             showToast(`${selectedOrder} 개통 완료! (${newCount}건)`);
         } else {
             console.error('선택된 순번이 people 데이터에 없음:', selectedOrder);
+            console.error('현재 people 키들:', Object.keys(people));
             showToast('카운트 업데이트 실패: 순번 데이터 없음');
         }
         
@@ -825,6 +926,37 @@ window.debug = {
                 }
             });
         });
+    },
+    
+    // 순번 관련 디버깅
+    getTurnInfo: () => {
+        const sorted = Object.keys(people).sort((a, b) => people[a].order - people[b].order);
+        return {
+            currentTurn: currentTurn,
+            selectedOrder: selectedOrder, 
+            peopleOrder: sorted,
+            currentIndex: sorted.indexOf(currentTurn)
+        };
+    },
+    
+    // 카운트 강제 수정 (테스트용)
+    forceSetCount: async (name, count) => {
+        if (!people[name]) {
+            console.error('존재하지 않는 사람:', name);
+            return;
+        }
+        await database.ref(`people/${name}/count`).set(count);
+        console.log(`${name}의 카운트를 ${count}로 강제 설정했습니다.`);
+    },
+    
+    // 차례 강제 변경 (테스트용)
+    forceSetTurn: async (name) => {
+        if (!people[name]) {
+            console.error('존재하지 않는 사람:', name);
+            return;
+        }
+        await database.ref('currentTurn').set(name);
+        console.log(`현재 차례를 ${name}로 강제 설정했습니다.`);
     }
 };
 

@@ -732,6 +732,154 @@ body {
     line-height: 1.4;
 }
 
+/* 순번 변경 관리 스타일 */
+.turn-management {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f0f8ff;
+    border-radius: 12px;
+    border: 1px solid #03C75A;
+}
+
+.turn-management h4 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.current-turn-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.current-turn-info {
+    font-size: 14px;
+    color: #333;
+}
+
+.turn-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.change-turn-btn, .reset-turn-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.change-turn-btn {
+    background: #03C75A;
+    color: white;
+}
+
+.change-turn-btn:hover {
+    background: #029347;
+}
+
+.reset-turn-btn {
+    background: #6c757d;
+    color: white;
+}
+
+.reset-turn-btn:hover {
+    background: #545b62;
+}
+
+/* 순번 관리 아이템 스타일 개선 */
+.order-item.current-person {
+    background: #f0f8ff;
+    border: 2px solid #03C75A;
+}
+
+.turn-btn {
+    padding: 4px 8px;
+    border: 1px solid #03C75A;
+    border-radius: 4px;
+    font-size: 12px;
+    background: white;
+    color: #03C75A;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.turn-btn:hover:not(:disabled) {
+    background: #03C75A;
+    color: white;
+}
+
+.turn-btn.current {
+    background: #03C75A;
+    color: white;
+}
+
+.turn-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* 차례 변경 모달 스타일 */
+.change-turn-section h4 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.turn-select-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.turn-select-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.turn-select-btn:hover:not(:disabled) {
+    border-color: #03C75A;
+    background: #f0f8ff;
+}
+
+.turn-select-btn.current {
+    border-color: #03C75A;
+    background: #f0f8ff;
+}
+
+.turn-select-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.turn-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.turn-status {
+    font-size: 12px;
+    color: #666;
+}
+
+.turn-select-btn.current .turn-status {
+    color: #03C75A;
+    font-weight: 600;
+}
+
 /* 토스트 알림 */
 .toast {
     position: fixed;
