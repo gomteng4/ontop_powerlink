@@ -37,6 +37,7 @@ const modalBody = document.getElementById('modalBody');
 const toast = document.getElementById('toast');
 const toastMessage = document.getElementById('toastMessage');
 const currentTurnElement = document.getElementById('currentTurn');
+const weeklyCountElement = document.getElementById('weeklyCount');
 
 // 폼 요소
 const customerNameInput = document.getElementById('customerName');
@@ -55,6 +56,7 @@ function initializeApp() {
     loadFormData();
     bindEvents();
     setupFirebaseListeners();
+    updateWeeklyCount(); // 초기 주간 통계 표시
 }
 
 // 오늘 날짜 설정
@@ -91,16 +93,24 @@ function setupFirebaseListeners() {
     // 개통 기록 리스너
     database.ref('activations').on('value', (snapshot) => {
         activations = snapshot.val() || {};
+        updateWeeklyCount();
     });
 }
 
 // 현재 차례 표시 업데이트
 function updateCurrentTurnDisplay() {
     if (currentTurn) {
-        currentTurnElement.textContent = `현재 순번: ${currentTurn}`;
+        currentTurnElement.textContent = `현재순번: ${currentTurn}`;
     } else {
-        currentTurnElement.textContent = '현재 순번: -';
+        currentTurnElement.textContent = '현재순번: -';
     }
+}
+
+// 주간 개통량 표시 업데이트
+function updateWeeklyCount() {
+    const stats = calculateStats();
+    const weeklyTotal = stats.week.total;
+    weeklyCountElement.textContent = `개통갯수: 주간 ${weeklyTotal}건`;
 }
 
 // 폼 데이터 로드

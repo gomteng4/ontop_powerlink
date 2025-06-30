@@ -103,6 +103,22 @@ body {
     color: #333;
 }
 
+.header-stats {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.weekly-count {
+    font-size: 12px;
+    font-weight: 500;
+    color: #666;
+    background: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 10px;
+}
+
 .current-turn {
     font-size: 14px;
     font-weight: 600;
@@ -636,6 +652,26 @@ body {
         max-width: 90px;
         font-size: 13px;
         padding: 10px 16px;
+    }
+    
+    .order-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .header-stats {
+        align-items: flex-start;
+        gap: 2px;
+    }
+    
+    .weekly-count {
+        font-size: 11px;
+    }
+    
+    .current-turn {
+        font-size: 13px;
+        padding: 5px 10px;
     }
     
     .order-grid {
