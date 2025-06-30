@@ -38,7 +38,12 @@ const modalBody = document.getElementById('modalBody');
 const toast = document.getElementById('toast');
 const toastMessage = document.getElementById('toastMessage');
 const currentTurnElement = document.getElementById('currentTurn');
-const countToggleElement = document.getElementById('countToggle');
+const statsDropdown = document.getElementById('statsDropdown');
+const dropdownBtn = document.getElementById('dropdownBtn');
+const dropdownContent = document.getElementById('dropdownContent');
+const todayCountElement = document.getElementById('todayCount');
+const weekCountElement = document.getElementById('weekCount');
+const monthCountElement = document.getElementById('monthCount');
 
 // 폼 요소
 const customerNameInput = document.getElementById('customerName');
@@ -57,6 +62,7 @@ function initializeApp() {
     loadFormData();
     bindEvents();
     setupFirebaseListeners();
+    updateDropdownStats(); // 초기 통계 표시
 }
 
 // 오늘 날짜 설정
@@ -94,6 +100,7 @@ function setupFirebaseListeners() {
     database.ref('activations').on('value', (snapshot) => {
         activations = snapshot.val() || {};
         renderOrderGrid(); // 카운트 업데이트를 위해 그리드 새로고침
+        updateDropdownStats(); // 드롭다운 통계 업데이트
     });
 }
 
@@ -110,6 +117,14 @@ function updateCurrentTurnDisplay() {
 function getPersonCount(personName, period) {
     const stats = calculateStats();
     return stats[period].people[personName] || 0;
+}
+
+// 드롭다운 통계 업데이트
+function updateDropdownStats() {
+    const stats = calculateStats();
+    todayCountElement.textContent = `${stats.today.total}건`;
+    weekCountElement.textContent = `${stats.week.total}건`;
+    monthCountElement.textContent = `${stats.month.total}건`;
 }
 
 // 폼 데이터 로드
@@ -178,21 +193,34 @@ function bindEvents() {
         }
     });
 
-    // 기간 전환 버튼 이벤트
-    countToggleElement.addEventListener('click', function(e) {
-        if (e.target.classList.contains('toggle-period')) {
-            // 기존 활성화 제거
-            document.querySelectorAll('.toggle-period').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // 새로 선택된 기간 활성화
-            e.target.classList.add('active');
-            currentPeriod = e.target.dataset.period;
-            
-            // 순번 그리드 새로고침 (카운트 업데이트)
-            renderOrderGrid();
+    // 드롭다운 토글 이벤트
+    dropdownBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dropdownContent.classList.toggle('show');
+        updateDropdownStats();
+    });
+
+    // 드롭다운 항목 클릭 이벤트
+    dropdownContent.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const item = e.target.closest('.dropdown-item');
+        if (item) {
+            const period = item.dataset.period;
+            if (period && period !== currentPeriod) {
+                currentPeriod = period;
+                renderOrderGrid();
+                dropdownContent.classList.remove('show');
+                
+                const periodText = period === 'today' ? '일간' : 
+                                 period === 'week' ? '주간' : '월간';
+                showToast(`${periodText} 통계로 변경됨`);
+            }
         }
+    });
+
+    // 드롭다운 외부 클릭 시 닫기
+    document.addEventListener('click', function() {
+        dropdownContent.classList.remove('show');
     });
 
     // 키보드 단축키
@@ -262,7 +290,7 @@ function renderOrderGrid() {
     }
 }
 
-// 순번 선택
+// 순번 선택 (선택 버그 수정)
 function selectOrder(orderName) {
     const wasSelected = selectedOrder === orderName;
     
@@ -276,6 +304,9 @@ function selectOrder(orderName) {
     
     // Firebase에 선택 상태 업데이트
     database.ref('selectedPerson').set(selectedOrder);
+    
+    // 즉시 UI 업데이트 (선택 버그 수정)
+    renderOrderGrid();
     
     saveFormData();
 }

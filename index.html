@@ -29,11 +29,24 @@
         <section class="order-selection">
             <div class="order-header">
                 <h2>개통순번</h2>
-                <div class="count-toggle" id="countToggle">
-                    <span class="toggle-label">개통갯수:</span>
-                    <span class="toggle-period active" data-period="today">일간</span>
-                    <span class="toggle-period" data-period="week">주간</span>
-                    <span class="toggle-period" data-period="month">월간</span>
+                <div class="stats-dropdown" id="statsDropdown">
+                    <button class="dropdown-btn" id="dropdownBtn">
+                        통계 보기 ▼
+                    </button>
+                    <div class="dropdown-content" id="dropdownContent">
+                        <div class="dropdown-item" data-period="today">
+                            <span class="period-label">일간</span>
+                            <span class="period-count" id="todayCount">0건</span>
+                        </div>
+                        <div class="dropdown-item" data-period="week">
+                            <span class="period-label">주간</span>
+                            <span class="period-count" id="weekCount">0건</span>
+                        </div>
+                        <div class="dropdown-item" data-period="month">
+                            <span class="period-label">월간</span>
+                            <span class="period-count" id="monthCount">0건</span>
+                        </div>
+                    </div>
                 </div>
                 <span class="current-turn" id="currentTurn">현재순번: -</span>
             </div>

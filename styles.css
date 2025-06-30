@@ -107,43 +107,80 @@ body {
     flex-shrink: 0;
 }
 
-.count-toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+.stats-dropdown {
+    position: relative;
     flex: 1;
+    display: flex;
     justify-content: center;
 }
 
-.toggle-label {
-    font-size: 14px;
-    font-weight: 600;
-    color: #333;
-    margin-right: 4px;
-}
-
-.toggle-period {
-    font-size: 12px;
-    font-weight: 500;
-    color: #666;
+.dropdown-btn {
     background: #f8f9fa;
-    padding: 4px 8px;
-    border-radius: 8px;
+    color: #333;
+    border: 1px solid #e0e0e0;
+    border-radius: 15px;
+    padding: 6px 12px;
+    font-size: 14px;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
-    border: 1px solid #e0e0e0;
+    min-width: 100px;
 }
 
-.toggle-period:hover {
+.dropdown-btn:hover {
     background: #e8f5ed;
     color: #03C75A;
     border-color: #03C75A;
 }
 
-.toggle-period.active {
-    background: #03C75A;
-    color: white;
-    border-color: #03C75A;
+.dropdown-content {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    min-width: 140px;
+    display: none;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.dropdown-content.show {
+    display: block;
+}
+
+.dropdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover {
+    background: #f8f9fa;
+}
+
+.period-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+}
+
+.period-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: #03C75A;
 }
 
 .current-turn {
@@ -690,18 +727,26 @@ body {
         gap: 8px;
     }
     
-    .count-toggle {
+    .stats-dropdown {
         justify-content: flex-start;
-        gap: 4px;
     }
     
-    .toggle-label {
+    .dropdown-btn {
+        font-size: 13px;
+        padding: 5px 10px;
+        min-width: 90px;
+    }
+    
+    .dropdown-content {
+        min-width: 120px;
+    }
+    
+    .period-label {
         font-size: 13px;
     }
     
-    .toggle-period {
-        font-size: 11px;
-        padding: 3px 6px;
+    .period-count {
+        font-size: 12px;
     }
     
     .current-turn {
