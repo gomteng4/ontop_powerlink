@@ -131,10 +131,24 @@ function updateCurrentTurnDisplay() {
     }
 }
 
-// 선택된 기간의 개인별 카운트 가져오기
+// 선택된 기간의 개인별 카운트 가져오기 (실제 기록 기반)
 function getPersonCount(personName, period) {
     const stats = calculateStats();
-    return stats[period].people[personName] || 0;
+    const count = stats[period].people[personName] || 0;
+    console.log(`${personName} ${period} 카운트:`, count);
+    return count;
+}
+
+// 실시간 개통 카운트 계산 (activations 기반)
+function getRealTimePersonCount(personName) {
+    let count = 0;
+    Object.values(activations).forEach(record => {
+        if (record.순번담당자 === personName) {
+            count++;
+        }
+    });
+    console.log(`${personName} 실시간 총 카운트:`, count);
+    return count;
 }
 
 // 드롭다운 통계 업데이트
@@ -143,6 +157,72 @@ function updateDropdownStats() {
     todayCountElement.textContent = `${stats.today.total}건`;
     weekCountElement.textContent = `${stats.week.total}건`;
     monthCountElement.textContent = `${stats.month.total}건`;
+    
+    // 기간 정보 업데이트
+    updatePeriodInfo();
+}
+
+// 현재 선택된 기간의 날짜 범위 계산
+function getCurrentPeriodRange() {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    if (currentPeriod === 'today') {
+        return {
+            start: today,
+            end: today,
+            label: '오늘'
+        };
+    } else if (currentPeriod === 'week') {
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay()); // 일요일부터
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6); // 토요일까지
+        
+        return {
+            start: weekStart,
+            end: weekEnd,
+            label: '이번주'
+        };
+    } else if (currentPeriod === 'month') {
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        
+        return {
+            start: monthStart,
+            end: monthEnd,
+            label: '이번달'
+        };
+    }
+}
+
+// 기간 정보 표시 업데이트
+function updatePeriodInfo() {
+    const periodInfoElement = document.getElementById('periodInfo');
+    if (!periodInfoElement) return;
+    
+    const range = getCurrentPeriodRange();
+    const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+    
+    let periodText = '';
+    if (currentPeriod === 'today') {
+        periodText = `📅 ${formatDate(range.start)} (${range.label})`;
+    } else {
+        periodText = `📅 ${formatDate(range.start)} ~ ${formatDate(range.end)} (${range.label})`;
+    }
+    
+    const stats = calculateStats();
+    const totalCount = stats[currentPeriod].total;
+    
+    periodInfoElement.innerHTML = `
+        <div class="period-text">${periodText}</div>
+        <div class="period-total">전체 ${totalCount}건</div>
+    `;
 }
 
 // 폼 데이터 로드
@@ -227,6 +307,7 @@ function bindEvents() {
             if (period && period !== currentPeriod) {
                 currentPeriod = period;
                 renderOrderGrid();
+                updatePeriodInfo(); // 기간 정보 업데이트
                 dropdownContent.classList.remove('show');
                 
                 const periodText = period === 'today' ? '일간' : 
@@ -276,14 +357,15 @@ function renderOrderGrid() {
             button.classList.add('selected');
         }
         
-        // 선택된 기간에 맞는 카운트 표시
+        // 선택된 기간에 맞는 카운트 표시 (실제 기록 기반)
         const periodCount = getPersonCount(name, currentPeriod);
+        const totalCount = getRealTimePersonCount(name);
         const periodText = currentPeriod === 'today' ? '일간' : 
                           currentPeriod === 'week' ? '주간' : '월간';
         
         button.innerHTML = `
             <div class="name">${name}</div>
-            <div class="count">${periodText} ${periodCount}건</div>
+            <div class="count">${periodText} ${periodCount}건 (총 ${totalCount}건)</div>
         `;
         
         button.addEventListener('click', () => selectOrder(name));
@@ -419,10 +501,13 @@ function showManageOrderModal() {
     
     peopleList.sort((a, b) => people[a].order - people[b].order).forEach((name, index) => {
         const isCurrent = name === currentTurn;
+        const realCount = getRealTimePersonCount(name);
+        const firebaseCount = people[name].count || 0;
+        
         html += `
             <div class="order-item ${isCurrent ? 'current-person' : ''}">
                 <span class="order-item-name">
-                    ${name} (${people[name].count || 0}건) ${isCurrent ? '👑' : ''}
+                    ${name} (실제: ${realCount}건${firebaseCount !== realCount ? `, FB: ${firebaseCount}` : ''}) ${isCurrent ? '👑' : ''}
                 </span>
                 <div class="order-item-actions">
                     <button class="turn-btn ${isCurrent ? 'current' : ''}" onclick="setCurrentTurn('${name}')" ${isCurrent ? 'disabled' : ''}>
@@ -442,52 +527,101 @@ function showManageOrderModal() {
     showModal();
 }
 
-// 카운트 수정
+// 카운트 수정 (실제 기록 기반 표시)
 function editCount(name) {
-    const currentCount = people[name].count || 0;
+    const firebaseCount = people[name].count || 0;
+    const realCount = getRealTimePersonCount(name);
     
-    modalTitle.textContent = '카운트 수정';
+    modalTitle.textContent = '카운트 관리';
     modalBody.innerHTML = `
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 8px; font-weight: 600;">${name}의 개통 건수</label>
-            <input type="number" class="modal-input" id="editCountInput" value="${currentCount}" min="0" max="999">
-            <div style="font-size: 12px; color: #888; margin-top: 5px;">
-                실수로 저장하거나 누락된 경우에만 수정하세요
+        <div class="count-info">
+            <h4>${name}의 개통 현황</h4>
+            <div class="count-comparison">
+                <div class="count-item">
+                    <span class="count-label">📊 실제 기록 기반:</span>
+                    <span class="count-value real">${realCount}건</span>
+                </div>
+                <div class="count-item">
+                    <span class="count-label">🔥 Firebase 카운트:</span>
+                    <span class="count-value firebase">${firebaseCount}건</span>
+                </div>
+                ${realCount !== firebaseCount ? `
+                <div class="count-mismatch">
+                    ⚠️ 불일치 발견! 차이: ${realCount - firebaseCount}건
+                </div>
+                ` : `
+                <div class="count-match">
+                    ✅ 데이터 일치
+                </div>
+                `}
             </div>
         </div>
+        
+        <div class="count-actions">
+            <h4>관리 옵션</h4>
+            <button class="sync-btn" onclick="syncFirebaseCount('${name}')">
+                Firebase 카운트를 실제 기록으로 동기화
+            </button>
+            <input type="number" class="modal-input" id="editCountInput" value="${firebaseCount}" min="0" max="999" placeholder="직접 수정">
+            <button class="manual-update-btn" onclick="updateCount('${name}')">Firebase 카운트 직접 수정</button>
+        </div>
+        
         <div style="text-align: right; margin-top: 15px;">
-            <button class="modal-btn" onclick="updateCount('${name}')">수정</button>
-            <button class="modal-btn" onclick="showManageOrderModal()">취소</button>
+            <button class="modal-btn" onclick="showManageOrderModal()">닫기</button>
         </div>
     `;
     
     setTimeout(() => {
         const input = document.getElementById('editCountInput');
-        input.focus();
-        input.select();
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                updateCount(name);
+            }
+        });
     }, 100);
-    
-    document.getElementById('editCountInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            updateCount(name);
-        }
-    });
 }
 
-// 카운트 업데이트
+// Firebase 카운트 동기화 (실제 기록 기준)
+async function syncFirebaseCount(name) {
+    const realCount = getRealTimePersonCount(name);
+    
+    if (!confirm(`${name}의 Firebase 카운트를 실제 기록(${realCount}건)으로 동기화하시겠습니까?`)) {
+        return;
+    }
+    
+    try {
+        await database.ref(`people/${name}/count`).set(realCount);
+        showManageOrderModal();
+        showToast(`${name}의 Firebase 카운트가 ${realCount}건으로 동기화되었습니다`);
+    } catch (error) {
+        console.error('카운트 동기화 오류:', error);
+        showToast('카운트 동기화 중 오류가 발생했습니다');
+    }
+}
+
+// Firebase 카운트 직접 수정
 async function updateCount(name) {
     const input = document.getElementById('editCountInput');
     const newCount = parseInt(input.value) || 0;
+    const realCount = getRealTimePersonCount(name);
     
     if (newCount < 0) {
         showToast('카운트는 0 이상이어야 합니다');
         return;
     }
     
+    const confirmMsg = newCount !== realCount ? 
+        `⚠️ 주의: 실제 기록(${realCount}건)과 다른 값(${newCount}건)으로 설정하시겠습니까?\n데이터 불일치가 발생할 수 있습니다.` :
+        `${name}의 Firebase 카운트를 ${newCount}건으로 설정하시겠습니까?`;
+    
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
     try {
         await database.ref(`people/${name}/count`).set(newCount);
         showManageOrderModal();
-        showToast(`${name}의 카운트가 ${newCount}건으로 수정되었습니다`);
+        showToast(`${name}의 Firebase 카운트가 ${newCount}건으로 수정되었습니다`);
     } catch (error) {
         console.error('카운트 수정 오류:', error);
         showToast('카운트 수정 중 오류가 발생했습니다');
@@ -697,25 +831,14 @@ async function handleSave() {
         await database.ref('activations').push(data);
         console.log('activations 저장 완료');
         
-        // 개통량 카운트 증가 (강화된 버전)
-        if (people[selectedOrder]) {
-            const currentCount = people[selectedOrder].count || 0;
-            const newCount = currentCount + 1;
-            console.log(`카운트 업데이트: ${selectedOrder} ${currentCount} -> ${newCount}`);
-            
-            // Firebase 트랜잭션으로 안전한 카운트 업데이트
-            await database.ref(`people/${selectedOrder}/count`).transaction((current) => {
-                console.log('트랜잭션 실행:', current, '->', (current || 0) + 1);
-                return (current || 0) + 1;
-            });
-            
-            console.log('카운트 업데이트 완료 (트랜잭션)');
-            showToast(`${selectedOrder} 개통 완료! (${newCount}건)`);
-        } else {
-            console.error('선택된 순번이 people 데이터에 없음:', selectedOrder);
-            console.error('현재 people 키들:', Object.keys(people));
-            showToast('카운트 업데이트 실패: 순번 데이터 없음');
-        }
+        // 개통 기록 저장 완료 (카운트는 실시간 계산)
+        console.log('개통 기록 저장 완료');
+        
+        // 실시간 카운트 확인 및 표시
+        const realTimeCount = getRealTimePersonCount(selectedOrder);
+        showToast(`${selectedOrder} 개통 완료! (총 ${realTimeCount}건)`);
+        
+        console.log(`${selectedOrder} 실시간 카운트: ${realTimeCount}`);
         
         // 현재 차례인 사람이 저장하면 다음 순번으로 이동
         if (selectedOrder === currentTurn) {
@@ -913,13 +1036,20 @@ window.debug = {
         });
     },
     
-    // 모든 사람 카운트 비교
+    // 모든 사람 카운트 비교 (실제 vs Firebase)
     compareAllCounts: () => {
         const stats = calculateStats();
+        console.log('=== 카운트 비교 (실제 기록 vs Firebase) ===');
         Object.keys(people).forEach(name => {
-            console.log(`${name}:`, {
-                firebase: people[name]?.count || 0,
-                calculated: {
+            const realCount = getRealTimePersonCount(name);
+            const firebaseCount = people[name]?.count || 0;
+            const match = realCount === firebaseCount ? '✅' : '❌';
+            
+            console.log(`${match} ${name}:`, {
+                실제총카운트: realCount,
+                Firebase카운트: firebaseCount,
+                차이: realCount - firebaseCount,
+                기간별실제: {
                     today: stats.today.people[name] || 0,
                     week: stats.week.people[name] || 0,
                     month: stats.month.people[name] || 0
@@ -965,7 +1095,15 @@ console.log('사용법:');
 console.log('- debug.getStatus() : 현재 상태 확인');
 console.log('- debug.getStats() : 통계 확인');
 console.log('- debug.getPerson("이름") : 특정 사람 데이터 확인');
-console.log('- debug.compareAllCounts() : 모든 사람 카운트 비교');
+console.log('- debug.compareAllCounts() : 실제 vs Firebase 카운트 비교');
+console.log('- debug.getTurnInfo() : 순번 정보 확인');
+console.log('- debug.forceSetCount("이름", 숫자) : 카운트 강제 설정');
+console.log('- debug.forceSetTurn("이름") : 차례 강제 변경');
+console.log('');
+console.log('💡 새로운 카운트 시스템:');
+console.log('- 실제 개통 기록(activations) 기반으로 정확한 카운트');
+console.log('- Firebase people.count는 참고용 (불일치 가능)');
+console.log('- 등록시간 기준으로 일간/주간/월간 자동 계산');
 
 // 카운트 관리 모달 표시
 function showCountManageModal() {

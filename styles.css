@@ -153,6 +153,46 @@ body {
     display: block;
 }
 
+/* 기간 정보 표시 영역 */
+.period-info {
+    background: linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 100%);
+    border: 1px solid #03C75A;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin: 10px 0 15px 0;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(3, 199, 90, 0.1);
+}
+
+.period-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 4px;
+}
+
+.period-total {
+    font-size: 12px;
+    color: #03C75A;
+    font-weight: 600;
+}
+
+/* 반응형 */
+@media (max-width: 480px) {
+    .period-info {
+        padding: 10px 12px;
+        margin: 8px 0 12px 0;
+    }
+    
+    .period-text {
+        font-size: 13px;
+    }
+    
+    .period-total {
+        font-size: 11px;
+    }
+}
+
 .dropdown-item {
     display: flex;
     justify-content: space-between;
@@ -878,6 +918,116 @@ body {
 .turn-select-btn.current .turn-status {
     color: #03C75A;
     font-weight: 600;
+}
+
+/* 카운트 관리 모달 스타일 */
+.count-info {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+}
+
+.count-info h4 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: #333;
+    text-align: center;
+}
+
+.count-comparison {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.count-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.count-label {
+    font-size: 14px;
+    color: #666;
+}
+
+.count-value {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.count-value.real {
+    color: #03C75A;
+}
+
+.count-value.firebase {
+    color: #007bff;
+}
+
+.count-match {
+    text-align: center;
+    padding: 8px;
+    background: #d4edda;
+    color: #155724;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.count-mismatch {
+    text-align: center;
+    padding: 8px;
+    background: #f8d7da;
+    color: #721c24;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.count-actions {
+    margin-bottom: 20px;
+}
+
+.count-actions h4 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: #333;
+}
+
+.sync-btn, .manual-update-btn {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.sync-btn {
+    background: #28a745;
+    color: white;
+}
+
+.sync-btn:hover {
+    background: #218838;
+}
+
+.manual-update-btn {
+    background: #ffc107;
+    color: #212529;
+}
+
+.manual-update-btn:hover {
+    background: #e0a800;
 }
 
 /* 토스트 알림 */
