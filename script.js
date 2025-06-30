@@ -21,11 +21,13 @@ const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwA1hBxi_PMAv
 let selectedOrder = '';
 let currentTurn = '';
 let people = {};
+let activations = {};
 let editingOrderIndex = -1;
 
 // DOM 요소
 const addOrderBtn = document.getElementById('addOrderBtn');
 const manageOrderBtn = document.getElementById('manageOrderBtn');
+const countManageBtn = document.getElementById('countManageBtn');
 const orderGrid = document.getElementById('orderGrid');
 const saveBtn = document.getElementById('saveBtn');
 const modal = document.getElementById('modal');
@@ -85,6 +87,11 @@ function setupFirebaseListeners() {
             renderOrderGrid();
         }
     });
+
+    // 개통 기록 리스너
+    database.ref('activations').on('value', (snapshot) => {
+        activations = snapshot.val() || {};
+    });
 }
 
 // 현재 차례 표시 업데이트
@@ -127,6 +134,9 @@ function bindEvents() {
     
     // 순번 관리 버튼
     manageOrderBtn.addEventListener('click', showManageOrderModal);
+    
+    // 카운트 관리 버튼
+    countManageBtn.addEventListener('click', showCountManageModal);
     
     // 저장 버튼
     saveBtn.addEventListener('click', handleSave);
@@ -314,6 +324,7 @@ function showManageOrderModal() {
             <div class="order-item">
                 <span class="order-item-name">${name} (${people[name].count || 0}건)</span>
                 <div class="order-item-actions">
+                    <button class="count-btn" onclick="editCount('${name}')">카운트</button>
                     <button class="edit-btn" onclick="editOrder('${name}')">수정</button>
                     <button class="delete-btn" onclick="deleteOrder('${name}')">삭제</button>
                 </div>
@@ -324,6 +335,58 @@ function showManageOrderModal() {
     
     modalBody.innerHTML = html;
     showModal();
+}
+
+// 카운트 수정
+function editCount(name) {
+    const currentCount = people[name].count || 0;
+    
+    modalTitle.textContent = '카운트 수정';
+    modalBody.innerHTML = `
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">${name}의 개통 건수</label>
+            <input type="number" class="modal-input" id="editCountInput" value="${currentCount}" min="0" max="999">
+            <div style="font-size: 12px; color: #888; margin-top: 5px;">
+                실수로 저장하거나 누락된 경우에만 수정하세요
+            </div>
+        </div>
+        <div style="text-align: right; margin-top: 15px;">
+            <button class="modal-btn" onclick="updateCount('${name}')">수정</button>
+            <button class="modal-btn" onclick="showManageOrderModal()">취소</button>
+        </div>
+    `;
+    
+    setTimeout(() => {
+        const input = document.getElementById('editCountInput');
+        input.focus();
+        input.select();
+    }, 100);
+    
+    document.getElementById('editCountInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            updateCount(name);
+        }
+    });
+}
+
+// 카운트 업데이트
+async function updateCount(name) {
+    const input = document.getElementById('editCountInput');
+    const newCount = parseInt(input.value) || 0;
+    
+    if (newCount < 0) {
+        showToast('카운트는 0 이상이어야 합니다');
+        return;
+    }
+    
+    try {
+        await database.ref(`people/${name}/count`).set(newCount);
+        showManageOrderModal();
+        showToast(`${name}의 카운트가 ${newCount}건으로 수정되었습니다`);
+    } catch (error) {
+        console.error('카운트 수정 오류:', error);
+        showToast('카운트 수정 중 오류가 발생했습니다');
+    }
 }
 
 // 순번 수정
@@ -631,4 +694,189 @@ window.debugFunctions = {
             showToast('Firebase 데이터 초기화됨');
         }
     }
-}; 
+};
+
+// 카운트 관리 모달 표시
+function showCountManageModal() {
+    modalTitle.textContent = '카운트 관리';
+    
+    const peopleList = Object.keys(people);
+    if (peopleList.length === 0) {
+        modalBody.innerHTML = '<div style="text-align: center; color: #888;">순번이 없습니다.</div>';
+        showModal();
+        return;
+    }
+
+    const stats = calculateStats();
+    
+    let html = `
+        <div class="count-stats">
+            <div class="stats-period">
+                <h4>📊 기간별 개통 통계</h4>
+                <div class="stats-row">
+                    <span>오늘</span>
+                    <span>${stats.today.total}건</span>
+                </div>
+                <div class="stats-row">
+                    <span>이번 주</span>
+                    <span>${stats.week.total}건</span>
+                </div>
+                <div class="stats-row">
+                    <span>이번 달</span>
+                    <span>${stats.month.total}건</span>
+                </div>
+            </div>
+            
+            <div class="stats-personal">
+                <h4>👥 개인별 통계</h4>
+                <div class="stats-tabs">
+                    <button class="stats-tab active" onclick="showStatsTab('today')">일간</button>
+                    <button class="stats-tab" onclick="showStatsTab('week')">주간</button>
+                    <button class="stats-tab" onclick="showStatsTab('month')">월간</button>
+                </div>
+                <div id="statsContent" class="stats-content">
+                    <!-- 동적으로 생성 -->
+                </div>
+            </div>
+        </div>
+    `;
+    
+    modalBody.innerHTML = html;
+    showModal();
+    showStatsTab('today');
+}
+
+// 통계 계산
+function calculateStats() {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    const stats = {
+        today: { total: 0, people: {} },
+        week: { total: 0, people: {} },
+        month: { total: 0, people: {} }
+    };
+    
+    // 각 사람별 초기화
+    Object.keys(people).forEach(name => {
+        stats.today.people[name] = 0;
+        stats.week.people[name] = 0;
+        stats.month.people[name] = 0;
+    });
+    
+    // 개통 기록 분석
+    Object.values(activations).forEach(record => {
+        const recordDate = parseKoreanDate(record.등록시간);
+        if (!recordDate) return;
+        
+        const personName = record.순번담당자;
+        
+        // 오늘
+        if (recordDate >= today) {
+            stats.today.total++;
+            if (stats.today.people[personName] !== undefined) {
+                stats.today.people[personName]++;
+            }
+        }
+        
+        // 이번 주
+        if (recordDate >= weekStart) {
+            stats.week.total++;
+            if (stats.week.people[personName] !== undefined) {
+                stats.week.people[personName]++;
+            }
+        }
+        
+        // 이번 달
+        if (recordDate >= monthStart) {
+            stats.month.total++;
+            if (stats.month.people[personName] !== undefined) {
+                stats.month.people[personName]++;
+            }
+        }
+    });
+    
+    return stats;
+}
+
+// 한국어 날짜 파싱
+function parseKoreanDate(dateString) {
+    try {
+        // "2024-01-15 오후 2:30:45" 형태를 파싱
+        const match = dateString.match(/(\d{4})-(\d{1,2})-(\d{1,2})\s*(오전|오후)?\s*(\d{1,2}):(\d{1,2}):(\d{1,2})/);
+        if (match) {
+            const [, year, month, day, meridiem, hour, minute, second] = match;
+            let hour24 = parseInt(hour);
+            
+            if (meridiem === '오후' && hour24 !== 12) {
+                hour24 += 12;
+            } else if (meridiem === '오전' && hour24 === 12) {
+                hour24 = 0;
+            }
+            
+            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), hour24, parseInt(minute), parseInt(second));
+        }
+        
+        // 일반적인 날짜 형태도 시도
+        return new Date(dateString);
+    } catch (error) {
+        console.error('날짜 파싱 오류:', dateString, error);
+        return null;
+    }
+}
+
+// 통계 탭 표시
+function showStatsTab(period) {
+    // 탭 활성화
+    document.querySelectorAll('.stats-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    const stats = calculateStats();
+    const periodStats = stats[period];
+    
+    let html = '';
+    const sortedPeople = Object.entries(periodStats.people)
+        .sort(([,a], [,b]) => b - a)
+        .filter(([name]) => people[name]); // 현재 존재하는 사람만
+    
+    sortedPeople.forEach(([name, count]) => {
+        html += `
+            <div class="stats-person">
+                <div class="stats-person-info">
+                    <span class="stats-person-name">${name}</span>
+                    <span class="stats-person-count">${count}건</span>
+                </div>
+                <button class="stats-reset-btn" onclick="resetPersonCount('${name}')">초기화</button>
+            </div>
+        `;
+    });
+    
+    if (html === '') {
+        html = '<div style="text-align: center; color: #888; padding: 20px;">기록이 없습니다.</div>';
+    }
+    
+    document.getElementById('statsContent').innerHTML = html;
+}
+
+// 개인별 카운트 초기화
+async function resetPersonCount(name) {
+    if (!confirm(`${name}의 카운트를 0으로 초기화하시겠습니까?`)) {
+        return;
+    }
+    
+    try {
+        await database.ref(`people/${name}/count`).set(0);
+        showToast(`${name}의 카운트가 초기화되었습니다`);
+        
+        // 모달 새로고침
+        showCountManageModal();
+    } catch (error) {
+        console.error('카운트 초기화 오류:', error);
+        showToast('카운트 초기화 중 오류가 발생했습니다');
+    }
+} 

@@ -39,10 +39,11 @@ body {
 /* 순번 관리 섹션 */
 .order-management {
     display: flex;
-    gap: 15px;
+    gap: 10px;
     margin-bottom: 30px;
     justify-content: center;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 /* 버튼 기본 스타일 */
@@ -72,8 +73,9 @@ body {
     background: #03C75A;
     color: white;
     flex: 1;
-    max-width: 120px;
+    max-width: 100px;
     border: 2px solid #03C75A;
+    font-size: 14px;
 }
 
 .btn-white:hover {
@@ -449,6 +451,15 @@ body {
     transition: background 0.3s ease;
 }
 
+.count-btn {
+    background: #007bff;
+    color: white;
+}
+
+.count-btn:hover {
+    background: #0056b3;
+}
+
 .edit-btn {
     background: #03C75A;
     color: white;
@@ -464,6 +475,123 @@ body {
 }
 
 .delete-btn:hover {
+    background: #c2185b;
+}
+
+/* 카운트 관리 스타일 */
+.count-stats {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.stats-period {
+    margin-bottom: 25px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 12px;
+}
+
+.stats-period h4 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.stats-row:last-child {
+    border-bottom: none;
+}
+
+.stats-personal h4 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.stats-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.stats-tab {
+    flex: 1;
+    padding: 10px 16px;
+    background: #f8f9fa;
+    color: #666;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.stats-tab.active {
+    background: #03C75A;
+    color: white;
+    border-color: #03C75A;
+}
+
+.stats-tab:hover:not(.active) {
+    background: #e8f5ed;
+    border-color: #03C75A;
+}
+
+.stats-content {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 15px;
+    min-height: 200px;
+}
+
+.stats-person {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.stats-person:last-child {
+    border-bottom: none;
+}
+
+.stats-person-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stats-person-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.stats-person-count {
+    font-size: 14px;
+    color: #666;
+}
+
+.stats-reset-btn {
+    background: #e91e63;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.stats-reset-btn:hover {
     background: #c2185b;
 }
 
@@ -500,6 +628,16 @@ body {
         padding: 20px 15px;
     }
     
+    .order-management {
+        gap: 8px;
+    }
+    
+    .btn-white {
+        max-width: 90px;
+        font-size: 13px;
+        padding: 10px 16px;
+    }
+    
     .order-grid {
         gap: 8px;
     }
@@ -533,10 +671,11 @@ body {
     
     .order-management {
         justify-content: center;
-        gap: 20px;
+        gap: 15px;
     }
     
     .btn-white {
-        max-width: 140px;
+        max-width: 120px;
+        font-size: 16px;
     }
 } 
