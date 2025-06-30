@@ -1,6 +1,26 @@
+// Firebase 설정
+const firebaseConfig = {
+    apiKey: "AIzaSyBR4IGzdox96Xb05g7g1f0jUAXbq1ogsU0",
+    authDomain: "ontop-powerlink.firebaseapp.com", 
+    databaseURL: "https://ontop-powerlink-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "ontop-powerlink",
+    storageBucket: "ontop-powerlink.firebasestorage.app",
+    messagingSenderId: "897362733868",
+    appId: "1:897362733868:web:99b189b7dd32b8b8431a89",
+    measurementId: "G-G7YWY27W8E"
+};
+
+// Firebase 초기화
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+// 구글 시트 API URL
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwA1hBxi_PMAvRnDMvm4o3NpTmcmSSuS5qAR3GHLrqwRyhSACVpVn3IJ0dOI6e1nwNLfQ/exec';
+
 // 전역 변수
-let orderList = [];
 let selectedOrder = '';
+let currentTurn = '';
+let people = {};
 let editingOrderIndex = -1;
 
 // DOM 요소
@@ -14,6 +34,7 @@ const modalTitle = document.getElementById('modalTitle');
 const modalBody = document.getElementById('modalBody');
 const toast = document.getElementById('toast');
 const toastMessage = document.getElementById('toastMessage');
+const currentTurnElement = document.getElementById('currentTurn');
 
 // 폼 요소
 const customerNameInput = document.getElementById('customerName');
@@ -28,11 +49,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // 앱 초기화
 function initializeApp() {
-    loadOrderList();
-    loadFormData();
     setTodayDate();
-    renderOrderGrid();
+    loadFormData();
     bindEvents();
+    setupFirebaseListeners();
 }
 
 // 오늘 날짜 설정
@@ -41,17 +61,39 @@ function setTodayDate() {
     openDateInput.value = today;
 }
 
-// 로컬 스토리지에서 순번 목록 로드
-function loadOrderList() {
-    const saved = localStorage.getItem('powerlink_orders');
-    if (saved) {
-        orderList = JSON.parse(saved);
-    }
+// Firebase 리스너 설정
+function setupFirebaseListeners() {
+    // 사람 목록 리스너
+    database.ref('people').on('value', (snapshot) => {
+        people = snapshot.val() || {};
+        renderOrderGrid();
+    });
+
+    // 현재 차례 리스너
+    database.ref('currentTurn').on('value', (snapshot) => {
+        currentTurn = snapshot.val() || '';
+        updateCurrentTurnDisplay();
+        renderOrderGrid();
+    });
+
+    // 선택된 사람 리스너
+    database.ref('selectedPerson').on('value', (snapshot) => {
+        const newSelectedOrder = snapshot.val() || '';
+        if (newSelectedOrder !== selectedOrder) {
+            selectedOrder = newSelectedOrder;
+            saveFormData();
+            renderOrderGrid();
+        }
+    });
 }
 
-// 순번 목록 저장
-function saveOrderList() {
-    localStorage.setItem('powerlink_orders', JSON.stringify(orderList));
+// 현재 차례 표시 업데이트
+function updateCurrentTurnDisplay() {
+    if (currentTurn) {
+        currentTurnElement.textContent = `현재 순번: ${currentTurn}`;
+    } else {
+        currentTurnElement.textContent = '현재 순번: -';
+    }
 }
 
 // 폼 데이터 로드
@@ -63,7 +105,6 @@ function loadFormData() {
         phoneNumberInput.value = data.phoneNumber || '';
         planNameInput.value = data.planName || '';
         openDateInput.value = data.openDate || new Date().toISOString().split('T')[0];
-        selectedOrder = data.selectedOrder || '';
     }
 }
 
@@ -102,29 +143,77 @@ function bindEvents() {
     [customerNameInput, phoneNumberInput, planNameInput, openDateInput].forEach(input => {
         input.addEventListener('input', saveFormData);
     });
+
+    // 전화번호 자동 포맷팅
+    phoneNumberInput.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/[^0-9]/g, '');
+        
+        if (value.length <= 3) {
+            e.target.value = value;
+        } else if (value.length <= 7) {
+            e.target.value = value.replace(/(\d{3})(\d{1,4})/, '$1-$2');
+        } else if (value.length <= 11) {
+            e.target.value = value.replace(/(\d{3})(\d{4})(\d{1,4})/, '$1-$2-$3');
+        } else {
+            e.target.value = value.replace(/(\d{3})(\d{1,4})(\d{1,4}).*/, '$1-$2-$3');
+        }
+    });
+
+    // 키보드 단축키
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.style.display === 'flex') {
+            hideModal();
+        }
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            handleSave();
+        }
+    });
 }
 
 // 순번 그리드 렌더링
 function renderOrderGrid() {
     orderGrid.innerHTML = '';
     
-    // 추가된 순번만큼만 버튼 생성
-    for (let i = 0; i < orderList.length; i++) {
+    // 사람 목록을 순서대로 정렬
+    const sortedPeople = Object.entries(people).sort((a, b) => a[1].order - b[1].order);
+    
+    // 기존 사람들 버튼 생성
+    sortedPeople.forEach(([name, data]) => {
         const button = document.createElement('button');
         button.className = 'order-btn';
-        button.textContent = orderList[i];
-        button.dataset.order = orderList[i];
-        button.addEventListener('click', () => selectOrder(orderList[i]));
+        button.dataset.name = name;
         
-        if (selectedOrder === orderList[i]) {
+        // 현재 차례인지 확인
+        if (name === currentTurn) {
+            button.classList.add('current-turn');
+        }
+        
+        // 선택된 상태인지 확인
+        if (name === selectedOrder) {
             button.classList.add('selected');
         }
         
+        button.innerHTML = `
+            <div class="name">${name}</div>
+            <div class="count">${data.count || 0}건 완료</div>
+        `;
+        
+        button.addEventListener('click', () => selectOrder(name));
         orderGrid.appendChild(button);
+    });
+    
+    // 빈 슬롯에 "순번 추가" 버튼 추가 (2열 그리드에서 홀수 개일 때)
+    if (sortedPeople.length % 2 === 1) {
+        const addButton = document.createElement('button');
+        addButton.className = 'order-btn add-new';
+        addButton.innerHTML = '순번 추가';
+        addButton.addEventListener('click', showAddOrderModal);
+        orderGrid.appendChild(addButton);
     }
     
-    // 순번이 없으면 안내 메시지 표시
-    if (orderList.length === 0) {
+    // 아무도 없으면 안내 메시지
+    if (sortedPeople.length === 0) {
         const emptyMessage = document.createElement('div');
         emptyMessage.className = 'empty-message';
         emptyMessage.textContent = '순번 추가 버튼을 눌러 담당자를 추가해주세요';
@@ -134,19 +223,21 @@ function renderOrderGrid() {
 
 // 순번 선택
 function selectOrder(orderName) {
-    selectedOrder = orderName;
+    if (selectedOrder === orderName) {
+        selectedOrder = '';
+    } else {
+        selectedOrder = orderName;
+    }
+    
+    // Firebase에 선택 상태 업데이트
+    database.ref('selectedPerson').set(selectedOrder);
+    
     saveFormData();
-    renderOrderGrid();
-    showToast(`${orderName} 선택됨`);
+    showToast(`${orderName} ${selectedOrder ? '선택됨' : '선택 해제됨'}`);
 }
 
 // 순번 추가 모달 표시
 function showAddOrderModal() {
-    if (orderList.length >= 8) {
-        showToast('최대 8개까지만 추가할 수 있습니다');
-        return;
-    }
-    
     modalTitle.textContent = '순번 추가';
     modalBody.innerHTML = `
         <input type="text" class="modal-input" id="orderNameInput" placeholder="담당자 이름을 입력하세요" maxlength="10">
@@ -157,12 +248,10 @@ function showAddOrderModal() {
     
     showModal();
     
-    // 입력 필드에 포커스
     setTimeout(() => {
         document.getElementById('orderNameInput').focus();
     }, 100);
     
-    // 엔터 키 처리
     document.getElementById('orderNameInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             addOrder();
@@ -171,7 +260,7 @@ function showAddOrderModal() {
 }
 
 // 순번 추가
-function addOrder() {
+async function addOrder() {
     const input = document.getElementById('orderNameInput');
     const name = input.value.trim();
     
@@ -180,21 +269,39 @@ function addOrder() {
         return;
     }
     
-    if (orderList.includes(name)) {
+    if (people[name]) {
         showToast('이미 존재하는 이름입니다');
         return;
     }
     
-    orderList.push(name);
-    saveOrderList();
-    renderOrderGrid();
-    hideModal();
-    showToast(`${name} 추가됨`);
+    try {
+        const newOrder = Object.keys(people).length + 1;
+        
+        // Firebase에 새 사람 추가
+        await database.ref(`people/${name}`).set({
+            count: 0,
+            available: true,
+            order: newOrder
+        });
+        
+        // 첫 번째 사람이면 현재 차례로 설정
+        if (newOrder === 1) {
+            await database.ref('currentTurn').set(name);
+        }
+        
+        hideModal();
+        showToast(`${name} 추가됨`);
+    } catch (error) {
+        console.error('순번 추가 오류:', error);
+        showToast('순번 추가 중 오류가 발생했습니다');
+    }
 }
 
 // 순번 관리 모달 표시
 function showManageOrderModal() {
-    if (orderList.length === 0) {
+    const peopleList = Object.keys(people);
+    
+    if (peopleList.length === 0) {
         showToast('관리할 순번이 없습니다');
         return;
     }
@@ -202,13 +309,13 @@ function showManageOrderModal() {
     modalTitle.textContent = '순번 관리';
     
     let html = '<div class="order-list">';
-    orderList.forEach((order, index) => {
+    peopleList.sort((a, b) => people[a].order - people[b].order).forEach((name, index) => {
         html += `
             <div class="order-item">
-                <span class="order-item-name">${order}</span>
+                <span class="order-item-name">${name} (${people[name].count || 0}건)</span>
                 <div class="order-item-actions">
-                    <button class="edit-btn" onclick="editOrder(${index})">수정</button>
-                    <button class="delete-btn" onclick="deleteOrder(${index})">삭제</button>
+                    <button class="edit-btn" onclick="editOrder('${name}')">수정</button>
+                    <button class="delete-btn" onclick="deleteOrder('${name}')">삭제</button>
                 </div>
             </div>
         `;
@@ -220,79 +327,107 @@ function showManageOrderModal() {
 }
 
 // 순번 수정
-function editOrder(index) {
-    editingOrderIndex = index;
-    const currentName = orderList[index];
-    
+function editOrder(name) {
     modalTitle.textContent = '순번 수정';
     modalBody.innerHTML = `
-        <input type="text" class="modal-input" id="editOrderNameInput" value="${currentName}" maxlength="10">
+        <input type="text" class="modal-input" id="editOrderNameInput" value="${name}" maxlength="10">
         <div style="text-align: right; margin-top: 15px;">
-            <button class="modal-btn" onclick="updateOrder()">수정</button>
+            <button class="modal-btn" onclick="updateOrder('${name}')">수정</button>
             <button class="modal-btn" onclick="showManageOrderModal()">취소</button>
         </div>
     `;
     
-    // 입력 필드에 포커스
     setTimeout(() => {
         const input = document.getElementById('editOrderNameInput');
         input.focus();
         input.select();
     }, 100);
     
-    // 엔터 키 처리
     document.getElementById('editOrderNameInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-            updateOrder();
+            updateOrder(name);
         }
     });
 }
 
 // 순번 업데이트
-function updateOrder() {
+async function updateOrder(oldName) {
     const input = document.getElementById('editOrderNameInput');
     const newName = input.value.trim();
-    const oldName = orderList[editingOrderIndex];
     
     if (!newName) {
         showToast('이름을 입력해주세요');
         return;
     }
     
-    if (newName !== oldName && orderList.includes(newName)) {
+    if (newName !== oldName && people[newName]) {
         showToast('이미 존재하는 이름입니다');
         return;
     }
     
-    // 선택된 순번 업데이트
-    if (selectedOrder === oldName) {
-        selectedOrder = newName;
-        saveFormData();
+    if (newName === oldName) {
+        showManageOrderModal();
+        return;
     }
     
-    orderList[editingOrderIndex] = newName;
-    saveOrderList();
-    renderOrderGrid();
-    showManageOrderModal();
-    showToast(`${oldName} → ${newName} 수정됨`);
+    try {
+        const oldData = people[oldName];
+        
+        // 새 이름으로 데이터 추가
+        await database.ref(`people/${newName}`).set(oldData);
+        
+        // 기존 이름 삭제
+        await database.ref(`people/${oldName}`).remove();
+        
+        // 현재 차례와 선택된 사람 업데이트
+        if (currentTurn === oldName) {
+            await database.ref('currentTurn').set(newName);
+        }
+        if (selectedOrder === oldName) {
+            selectedOrder = newName;
+            await database.ref('selectedPerson').set(newName);
+        }
+        
+        showManageOrderModal();
+        showToast(`${oldName} → ${newName} 수정됨`);
+    } catch (error) {
+        console.error('순번 수정 오류:', error);
+        showToast('순번 수정 중 오류가 발생했습니다');
+    }
 }
 
 // 순번 삭제
-function deleteOrder(index) {
-    const orderName = orderList[index];
+async function deleteOrder(name) {
+    if (!confirm(`${name}을(를) 삭제하시겠습니까?`)) {
+        return;
+    }
     
-    if (confirm(`${orderName}을(를) 삭제하시겠습니까?`)) {
-        // 선택된 순번이 삭제되는 경우 선택 해제
-        if (selectedOrder === orderName) {
+    try {
+        // Firebase에서 삭제
+        await database.ref(`people/${name}`).remove();
+        
+        // 선택된 순번이 삭제되는 경우
+        if (selectedOrder === name) {
             selectedOrder = '';
-            saveFormData();
+            await database.ref('selectedPerson').set('');
         }
         
-        orderList.splice(index, 1);
-        saveOrderList();
-        renderOrderGrid();
+        // 현재 차례가 삭제되는 경우 다음 사람으로 이동
+        if (currentTurn === name) {
+            const remainingPeople = Object.keys(people).filter(p => p !== name);
+            if (remainingPeople.length > 0) {
+                const sortedRemaining = remainingPeople.sort((a, b) => people[a].order - people[b].order);
+                await database.ref('currentTurn').set(sortedRemaining[0]);
+            } else {
+                await database.ref('currentTurn').set('');
+            }
+        }
+        
         showManageOrderModal();
-        showToast(`${orderName} 삭제됨`);
+        showToast(`${name} 삭제됨`);
+    } catch (error) {
+        console.error('순번 삭제 오류:', error);
+        showToast('순번 삭제 중 오류가 발생했습니다');
     }
 }
 
@@ -311,17 +446,46 @@ async function handleSave() {
         등록시간: new Date().toLocaleString('ko-KR')
     };
     
-    // 구글 시트 연동을 위한 데이터 준비
-    console.log('저장할 데이터:', data);
+    try {
+        // Firebase에 저장
+        await database.ref('activations').push(data);
+        
+        // 개통량 카운트 증가
+        if (people[selectedOrder]) {
+            const newCount = (people[selectedOrder].count || 0) + 1;
+            await database.ref(`people/${selectedOrder}/count`).set(newCount);
+        }
+        
+        // 현재 차례인 사람이 저장하면 다음 순번으로 이동
+        if (selectedOrder === currentTurn) {
+            await moveToNextTurn();
+        }
+        
+        // 구글 시트에도 저장
+        await sendToGoogleSheets(data);
+        
+        // 로컬 스토리지에 저장 기록 보관
+        saveToHistory(data);
+        
+        // 폼 초기화
+        resetForm();
+        
+    } catch (error) {
+        console.error('저장 오류:', error);
+        showToast('저장 중 오류가 발생했습니다');
+    }
+}
+
+// 다음 순번으로 이동
+async function moveToNextTurn() {
+    const peopleList = Object.keys(people).sort((a, b) => people[a].order - people[b].order);
+    const currentIndex = peopleList.indexOf(currentTurn);
     
-    // 구글 시트에 저장
-    await sendToGoogleSheets(data);
-    
-    // 로컬 스토리지에 저장 기록 보관
-    saveToHistory(data);
-    
-    // 폼 초기화
-    resetForm();
+    if (currentIndex !== -1) {
+        const nextIndex = (currentIndex + 1) % peopleList.length;
+        const nextPerson = peopleList[nextIndex];
+        await database.ref('currentTurn').set(nextPerson);
+    }
 }
 
 // 폼 유효성 검사
@@ -359,7 +523,6 @@ function saveToHistory(data) {
     
     history.unshift(data);
     
-    // 최대 100개 기록만 보관
     if (history.length > 100) {
         history = history.slice(0, 100);
     }
@@ -375,37 +538,33 @@ function resetForm() {
     setTodayDate();
     selectedOrder = '';
     
+    // Firebase에 선택 해제 업데이트
+    database.ref('selectedPerson').set('');
+    
     saveFormData();
-    renderOrderGrid();
 }
-
-// 구글 시트 API URL
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwA1hBxi_PMAvRnDMvm4o3NpTmcmSSuS5qAR3GHLrqwRyhSACVpVn3IJ0dOI6e1nwNLfQ/exec';
 
 // 구글 시트 연동 함수
 async function sendToGoogleSheets(data) {
     try {
-        // 로딩 표시
         saveBtn.textContent = '저장 중...';
         saveBtn.disabled = true;
         
         const response = await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors', // CORS 우회
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(data)
         });
         
-        // no-cors 모드에서는 응답을 확인할 수 없으므로 성공으로 간주
         showToast('구글 시트에 저장되었습니다!');
         
     } catch (error) {
-        console.error('저장 오류:', error);
-        showToast('저장 중 오류가 발생했습니다');
+        console.error('구글 시트 저장 오류:', error);
+        showToast('구글 시트 저장 중 오류가 발생했습니다');
     } finally {
-        // 버튼 복원
         saveBtn.textContent = '저장하기';
         saveBtn.disabled = false;
     }
@@ -434,35 +593,6 @@ function showToast(message) {
     }, 3000);
 }
 
-// 전화번호 자동 포맷팅
-phoneNumberInput.addEventListener('input', function(e) {
-    let value = e.target.value.replace(/[^0-9]/g, '');
-    
-    if (value.length <= 3) {
-        e.target.value = value;
-    } else if (value.length <= 7) {
-        e.target.value = value.replace(/(\d{3})(\d{1,4})/, '$1-$2');
-    } else if (value.length <= 11) {
-        e.target.value = value.replace(/(\d{3})(\d{4})(\d{1,4})/, '$1-$2-$3');
-    } else {
-        e.target.value = value.replace(/(\d{3})(\d{1,4})(\d{1,4}).*/, '$1-$2-$3');
-    }
-});
-
-// 키보드 단축키
-document.addEventListener('keydown', function(e) {
-    // ESC 키로 모달 닫기
-    if (e.key === 'Escape' && modal.style.display === 'flex') {
-        hideModal();
-    }
-    
-    // Ctrl + S로 저장
-    if (e.ctrlKey && e.key === 's') {
-        e.preventDefault();
-        handleSave();
-    }
-});
-
 // 페이지 이탈 시 확인
 window.addEventListener('beforeunload', function(e) {
     const hasUnsavedData = customerNameInput.value.trim() || 
@@ -476,30 +606,29 @@ window.addEventListener('beforeunload', function(e) {
     }
 });
 
-// 개발용 함수들 (콘솔에서 사용 가능)
+// 개발용 함수들
 window.debugFunctions = {
-    // 저장된 데이터 확인
     getStoredData: () => {
         return {
-            orders: JSON.parse(localStorage.getItem('powerlink_orders') || '[]'),
             formData: JSON.parse(localStorage.getItem('powerlink_form_data') || '{}'),
-            history: JSON.parse(localStorage.getItem('powerlink_history') || '[]')
+            history: JSON.parse(localStorage.getItem('powerlink_history') || '[]'),
+            firebasePeople: people,
+            currentTurn: currentTurn,
+            selectedOrder: selectedOrder
         };
     },
     
-    // 데이터 초기화
     clearAllData: () => {
-        localStorage.removeItem('powerlink_orders');
         localStorage.removeItem('powerlink_form_data');
         localStorage.removeItem('powerlink_history');
-        location.reload();
+        // Firebase 데이터는 수동으로 삭제해야 함
+        showToast('로컬 데이터 초기화됨');
     },
     
-    // 샘플 데이터 생성
-    generateSampleData: () => {
-        orderList = ['김철수', '이영희', '박민수', '정유진'];
-        saveOrderList();
-        renderOrderGrid();
-        showToast('샘플 데이터 생성됨');
+    resetFirebase: async () => {
+        if (confirm('Firebase 데이터를 모두 초기화하시겠습니까?')) {
+            await database.ref().set({});
+            showToast('Firebase 데이터 초기화됨');
+        }
     }
 }; 
