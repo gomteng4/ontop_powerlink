@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>파워링크 개통정리</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <header class="header">
+            <h1>파워링크 개통정리</h1>
+        </header>
+
+        <!-- 순번 관리 섹션 -->
+        <section class="order-management">
+            <button class="btn btn-white" id="addOrderBtn">순번 추가</button>
+            <button class="btn btn-white" id="manageOrderBtn">순번 관리</button>
+        </section>
+
+        <!-- 개통순번 선택 영역 -->
+        <section class="order-selection">
+            <h2>개통순번</h2>
+            <div class="order-grid" id="orderGrid">
+                <!-- 동적으로 생성될 순번 버튼들 -->
+            </div>
+        </section>
+
+        <!-- 입력 폼 섹션 -->
+        <section class="form-section">
+            <div class="form-group">
+                <label for="customerName">고객명</label>
+                <input type="text" id="customerName" placeholder="고객명을 입력하세요">
+            </div>
+
+            <div class="form-group">
+                <label for="phoneNumber">전화번호</label>
+                <input type="text" id="phoneNumber" placeholder="전화번호를 입력하세요">
+            </div>
+
+            <div class="form-group">
+                <label for="planName">요금제</label>
+                <input type="text" id="planName" placeholder="요금제를 입력하세요">
+            </div>
+
+            <div class="form-group">
+                <label for="openDate">개통날짜</label>
+                <input type="date" id="openDate">
+            </div>
+        </section>
+
+        <!-- 저장 버튼 -->
+        <button class="btn btn-save" id="saveBtn">저장하기</button>
+    </div>
+
+    <!-- 팝업 모달 -->
+    <div class="modal" id="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">순번 추가</h3>
+                <span class="close" id="closeModal">&times;</span>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- 동적 컨텐츠 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 알림 토스트 -->
+    <div class="toast" id="toast" style="display: none;">
+        <span id="toastMessage"></span>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
