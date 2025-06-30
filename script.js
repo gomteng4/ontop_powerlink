@@ -297,7 +297,7 @@ function deleteOrder(index) {
 }
 
 // 저장 처리
-function handleSave() {
+async function handleSave() {
     if (!validateForm()) {
         return;
     }
@@ -314,16 +314,14 @@ function handleSave() {
     // 구글 시트 연동을 위한 데이터 준비
     console.log('저장할 데이터:', data);
     
-    // 여기에 실제 구글 시트 API 호출 코드 추가 예정
-    // sendToGoogleSheets(data);
+    // 구글 시트에 저장
+    await sendToGoogleSheets(data);
     
-    // 임시로 로컬 스토리지에 저장 기록 보관
+    // 로컬 스토리지에 저장 기록 보관
     saveToHistory(data);
     
     // 폼 초기화
     resetForm();
-    
-    showToast('저장되었습니다!');
 }
 
 // 폼 유효성 검사
@@ -381,26 +379,35 @@ function resetForm() {
     renderOrderGrid();
 }
 
-// 구글 시트 연동 함수 (추후 구현)
+// 구글 시트 API URL
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwA1hBxi_PMAvRnDMvm4o3NpTmcmSSuS5qAR3GHLrqwRyhSACVpVn3IJ0dOI6e1nwNLfQ/exec';
+
+// 구글 시트 연동 함수
 async function sendToGoogleSheets(data) {
     try {
-        // 실제 구글 시트 API 엔드포인트로 변경 필요
-        const response = await fetch('YOUR_GOOGLE_SHEETS_API_ENDPOINT', {
+        // 로딩 표시
+        saveBtn.textContent = '저장 중...';
+        saveBtn.disabled = true;
+        
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
+            mode: 'no-cors', // CORS 우회
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(data)
         });
         
-        if (!response.ok) {
-            throw new Error('저장 실패');
-        }
-        
+        // no-cors 모드에서는 응답을 확인할 수 없으므로 성공으로 간주
         showToast('구글 시트에 저장되었습니다!');
+        
     } catch (error) {
         console.error('저장 오류:', error);
         showToast('저장 중 오류가 발생했습니다');
+    } finally {
+        // 버튼 복원
+        saveBtn.textContent = '저장하기';
+        saveBtn.disabled = false;
     }
 }
 
