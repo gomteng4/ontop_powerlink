@@ -135,7 +135,17 @@ function updateCurrentTurnDisplay() {
 function getPersonCount(personName, period) {
     const stats = calculateStats();
     const count = stats[period].people[personName] || 0;
-    console.log(`${personName} ${period} 카운트:`, count);
+    
+    // 상세 디버깅 정보
+    const debugInfo = {
+        person: personName,
+        period: period,
+        count: count,
+        totalStats: stats[period],
+        activationsTotal: Object.keys(activations).length
+    };
+    
+    console.log(`getPersonCount 결과:`, debugInfo);
     return count;
 }
 
@@ -175,14 +185,13 @@ function getCurrentPeriodRange() {
         };
     } else if (currentPeriod === 'week') {
         const weekStart = new Date(today);
-        weekStart.setDate(today.getDate() - today.getDay()); // 일요일부터
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6); // 토요일까지
+        weekStart.setDate(today.getDate() - 6); // 7일 전부터
+        const weekEnd = new Date(today); // 오늘까지
         
         return {
             start: weekStart,
             end: weekEnd,
-            label: '이번주'
+            label: '최근 7일'
         };
     } else if (currentPeriod === 'month') {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -311,7 +320,7 @@ function bindEvents() {
                 dropdownContent.classList.remove('show');
                 
                 const periodText = period === 'today' ? '일간' : 
-                                 period === 'week' ? '주간' : '월간';
+                                 period === 'week' ? '최근7일' : '월간';
                 showToast(`${periodText} 통계로 변경됨`);
             }
         }
@@ -361,7 +370,13 @@ function renderOrderGrid() {
         const periodCount = getPersonCount(name, currentPeriod);
         const totalCount = getRealTimePersonCount(name);
         const periodText = currentPeriod === 'today' ? '일간' : 
-                          currentPeriod === 'week' ? '주간' : '월간';
+                          currentPeriod === 'week' ? '최근7일' : '월간';
+        
+        console.log(`${name} 카운트 표시:`, {
+            period: currentPeriod,
+            periodCount: periodCount,
+            totalCount: totalCount
+        });
         
         button.innerHTML = `
             <div class="name">${name}</div>
@@ -1103,7 +1118,7 @@ console.log('');
 console.log('💡 새로운 카운트 시스템:');
 console.log('- 실제 개통 기록(activations) 기반으로 정확한 카운트');
 console.log('- Firebase people.count는 참고용 (불일치 가능)');
-console.log('- 등록시간 기준으로 일간/주간/월간 자동 계산');
+console.log('- 등록시간 기준으로 일간/최근7일/월간 자동 계산');
 
 // 카운트 관리 모달 표시
 function showCountManageModal() {
@@ -1127,7 +1142,7 @@ function showCountManageModal() {
                     <span>${stats.today.total}건</span>
                 </div>
                 <div class="stats-row">
-                    <span>이번 주</span>
+                    <span>최근 7일</span>
                     <span>${stats.week.total}건</span>
                 </div>
                 <div class="stats-row">
@@ -1140,7 +1155,7 @@ function showCountManageModal() {
                 <h4>👥 개인별 통계</h4>
                 <div class="stats-tabs">
                     <button class="stats-tab active" onclick="showStatsTab('today')">일간</button>
-                    <button class="stats-tab" onclick="showStatsTab('week')">주간</button>
+                    <button class="stats-tab" onclick="showStatsTab('week')">최근7일</button>
                     <button class="stats-tab" onclick="showStatsTab('month')">월간</button>
                 </div>
                 <div id="statsContent" class="stats-content">
@@ -1175,8 +1190,11 @@ function showCountManageModal() {
 function calculateStats() {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // 주간: 오늘부터 7일 전까지 (오늘 포함)
     const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - today.getDay());
+    weekStart.setDate(today.getDate() - 6); // 7일 전 (오늘 포함하면 총 7일)
+    
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     
     const stats = {
@@ -1193,23 +1211,39 @@ function calculateStats() {
     });
     
     // 개통 기록 분석
+    const recordsProcessed = {
+        total: 0,
+        today: 0,
+        week: 0,
+        month: 0,
+        errors: 0
+    };
+    
     Object.values(activations).forEach(record => {
+        recordsProcessed.total++;
+        
         const recordDate = parseKoreanDate(record.등록시간);
-        if (!recordDate) return;
+        if (!recordDate) {
+            recordsProcessed.errors++;
+            console.warn('날짜 파싱 실패:', record.등록시간);
+            return;
+        }
         
         const personName = record.순번담당자;
         
         // 오늘
         if (recordDate >= today) {
             stats.today.total++;
+            recordsProcessed.today++;
             if (stats.today.people[personName] !== undefined) {
                 stats.today.people[personName]++;
             }
         }
         
-        // 이번 주
+        // 최근 7일
         if (recordDate >= weekStart) {
             stats.week.total++;
+            recordsProcessed.week++;
             if (stats.week.people[personName] !== undefined) {
                 stats.week.people[personName]++;
             }
@@ -1218,9 +1252,22 @@ function calculateStats() {
         // 이번 달
         if (recordDate >= monthStart) {
             stats.month.total++;
+            recordsProcessed.month++;
             if (stats.month.people[personName] !== undefined) {
                 stats.month.people[personName]++;
             }
+        }
+    });
+    
+    console.log('calculateStats 처리 결과:', {
+        오늘: `${today.toDateString()}`,
+        최근7일시작: `${weekStart.toDateString()}`,
+        이번달시작: `${monthStart.toDateString()}`,
+        처리된기록: recordsProcessed,
+        최종통계: {
+            today: stats.today.total,
+            week: stats.week.total,
+            month: stats.month.total
         }
     });
     
