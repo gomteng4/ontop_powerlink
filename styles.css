@@ -676,6 +676,62 @@ body {
     background: #c2185b;
 }
 
+/* 카운트 관리 액션 버튼들 */
+.reset-actions {
+    margin-top: 20px;
+    padding: 15px;
+    background: #fff8f0;
+    border-radius: 12px;
+    border: 1px solid #ffe0b3;
+}
+
+.reset-actions h4 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.reset-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.reset-all-btn, .danger-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.reset-all-btn {
+    background: #007bff;
+    color: white;
+}
+
+.reset-all-btn:hover {
+    background: #0056b3;
+}
+
+.danger-btn {
+    background: #dc3545;
+    color: white;
+}
+
+.danger-btn:hover {
+    background: #c82333;
+}
+
+.reset-info {
+    font-size: 11px;
+    color: #666;
+    line-height: 1.4;
+}
+
 /* 토스트 알림 */
 .toast {
     position: fixed;

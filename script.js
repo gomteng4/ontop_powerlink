@@ -75,13 +75,24 @@ function setTodayDate() {
 function setupFirebaseListeners() {
     // 사람 목록 리스너
     database.ref('people').on('value', (snapshot) => {
+        const oldPeople = JSON.stringify(people);
         people = snapshot.val() || {};
+        const newPeople = JSON.stringify(people);
+        
+        if (oldPeople !== newPeople) {
+            console.log('People 데이터 업데이트:', people);
+        }
         renderOrderGrid();
     });
 
     // 현재 차례 리스너
     database.ref('currentTurn').on('value', (snapshot) => {
+        const oldTurn = currentTurn;
         currentTurn = snapshot.val() || '';
+        
+        if (oldTurn !== currentTurn) {
+            console.log(`현재 차례 변경: ${oldTurn} -> ${currentTurn}`);
+        }
         updateCurrentTurnDisplay();
         renderOrderGrid();
     });
@@ -90,6 +101,7 @@ function setupFirebaseListeners() {
     database.ref('selectedPerson').on('value', (snapshot) => {
         const newSelectedOrder = snapshot.val() || '';
         if (newSelectedOrder !== selectedOrder) {
+            console.log(`선택된 순번 변경: ${selectedOrder} -> ${newSelectedOrder}`);
             selectedOrder = newSelectedOrder;
             saveFormData();
             renderOrderGrid();
@@ -98,7 +110,13 @@ function setupFirebaseListeners() {
 
     // 개통 기록 리스너
     database.ref('activations').on('value', (snapshot) => {
+        const oldActivations = Object.keys(activations).length;
         activations = snapshot.val() || {};
+        const newActivations = Object.keys(activations).length;
+        
+        if (oldActivations !== newActivations) {
+            console.log(`Activations 데이터 업데이트: ${oldActivations}건 -> ${newActivations}건`);
+        }
         renderOrderGrid(); // 카운트 업데이트를 위해 그리드 새로고침
         updateDropdownStats(); // 드롭다운 통계 업데이트
     });
@@ -575,17 +593,32 @@ async function handleSave() {
     };
     
     try {
+        console.log('저장 시작:', data);
+        console.log('선택된 순번:', selectedOrder);
+        console.log('현재 people 데이터:', people);
+        
         // Firebase에 저장
         await database.ref('activations').push(data);
+        console.log('activations 저장 완료');
         
-        // 개통량 카운트 증가
+        // 개통량 카운트 증가 (디버깅 추가)
         if (people[selectedOrder]) {
-            const newCount = (people[selectedOrder].count || 0) + 1;
+            const currentCount = people[selectedOrder].count || 0;
+            const newCount = currentCount + 1;
+            console.log(`카운트 업데이트: ${selectedOrder} ${currentCount} -> ${newCount}`);
+            
             await database.ref(`people/${selectedOrder}/count`).set(newCount);
+            console.log('카운트 업데이트 완료');
+            
+            showToast(`${selectedOrder} 개통 완료! (${newCount}건)`);
+        } else {
+            console.error('선택된 순번이 people 데이터에 없음:', selectedOrder);
+            showToast('카운트 업데이트 실패: 순번 데이터 없음');
         }
         
         // 현재 차례인 사람이 저장하면 다음 순번으로 이동
         if (selectedOrder === currentTurn) {
+            console.log('다음 순번으로 이동');
             await moveToNextTurn();
         }
         
@@ -600,7 +633,7 @@ async function handleSave() {
         
     } catch (error) {
         console.error('저장 오류:', error);
-        showToast('저장 중 오류가 발생했습니다');
+        showToast('저장 중 오류가 발생했습니다: ' + error.message);
     }
 }
 
@@ -734,32 +767,73 @@ window.addEventListener('beforeunload', function(e) {
     }
 });
 
-// 개발용 함수들
-window.debugFunctions = {
-    getStoredData: () => {
+// 개발자 도구 디버깅 함수 (전역)
+window.debug = {
+    // 현재 상태 확인
+    getStatus: () => {
         return {
-            formData: JSON.parse(localStorage.getItem('powerlink_form_data') || '{}'),
-            history: JSON.parse(localStorage.getItem('powerlink_history') || '[]'),
-            firebasePeople: people,
+            people: people,
             currentTurn: currentTurn,
-            selectedOrder: selectedOrder
+            selectedOrder: selectedOrder,
+            activations: activations,
+            currentPeriod: currentPeriod,
+            activationsCount: Object.keys(activations).length
         };
     },
     
-    clearAllData: () => {
-        localStorage.removeItem('powerlink_form_data');
-        localStorage.removeItem('powerlink_history');
-        // Firebase 데이터는 수동으로 삭제해야 함
-        showToast('로컬 데이터 초기화됨');
+    // 통계 확인
+    getStats: () => {
+        return calculateStats();
     },
     
-    resetFirebase: async () => {
-        if (confirm('Firebase 데이터를 모두 초기화하시겠습니까?')) {
-            await database.ref().set({});
-            showToast('Firebase 데이터 초기화됨');
-        }
+    // Firebase 연결 상태 확인
+    getFirebaseStatus: () => {
+        return {
+            isConnected: firebase.database().ref('.info/connected'),
+            databaseURL: firebase.app().options.databaseURL
+        };
+    },
+    
+    // 특정 사람 데이터 확인
+    getPerson: (name) => {
+        return people[name];
+    },
+    
+    // 카운트 강제 재계산
+    recalculateCount: (name) => {
+        const stats = calculateStats();
+        console.log(`${name} 카운트:`, {
+            firebase: people[name]?.count || 0,
+            calculated: {
+                today: stats.today.people[name] || 0,
+                week: stats.week.people[name] || 0,
+                month: stats.month.people[name] || 0
+            }
+        });
+    },
+    
+    // 모든 사람 카운트 비교
+    compareAllCounts: () => {
+        const stats = calculateStats();
+        Object.keys(people).forEach(name => {
+            console.log(`${name}:`, {
+                firebase: people[name]?.count || 0,
+                calculated: {
+                    today: stats.today.people[name] || 0,
+                    week: stats.week.people[name] || 0,
+                    month: stats.month.people[name] || 0
+                }
+            });
+        });
     }
 };
+
+console.log('🔧 디버깅 도구가 준비되었습니다!');
+console.log('사용법:');
+console.log('- debug.getStatus() : 현재 상태 확인');
+console.log('- debug.getStats() : 통계 확인');
+console.log('- debug.getPerson("이름") : 특정 사람 데이터 확인');
+console.log('- debug.compareAllCounts() : 모든 사람 카운트 비교');
 
 // 카운트 관리 모달 표시
 function showCountManageModal() {
@@ -801,6 +875,22 @@ function showCountManageModal() {
                 </div>
                 <div id="statsContent" class="stats-content">
                     <!-- 동적으로 생성 -->
+                </div>
+            </div>
+            
+            <div class="reset-actions">
+                <h4>🔧 관리 기능</h4>
+                <div class="reset-buttons">
+                    <button class="reset-all-btn" onclick="resetAllCounts()">
+                        모든 카운트 초기화
+                    </button>
+                    <button class="danger-btn" onclick="clearAllActivations()">
+                        모든 기록 삭제 (위험)
+                    </button>
+                </div>
+                <div class="reset-info">
+                    ※ 카운트 초기화는 Firebase people.count만 0으로 설정합니다.<br>
+                    ※ 기록 삭제는 모든 activations 데이터를 완전히 삭제합니다.
                 </div>
             </div>
         </div>
@@ -928,20 +1018,87 @@ function showStatsTab(period) {
     document.getElementById('statsContent').innerHTML = html;
 }
 
-// 개인별 카운트 초기화
+// 개인별 카운트 초기화 (강화된 버전)
 async function resetPersonCount(name) {
-    if (!confirm(`${name}의 카운트를 0으로 초기화하시겠습니까?`)) {
+    const confirmMessage = `${name}의 카운트를 0으로 초기화하시겠습니까?\n\n※ 주의: Firebase people.count 값만 초기화됩니다.\n실제 개통 기록(activations)은 유지됩니다.`;
+    
+    if (!confirm(confirmMessage)) {
         return;
     }
     
     try {
+        console.log(`카운트 초기화 시작: ${name}`);
+        console.log('초기화 전 people 데이터:', people[name]);
+        
         await database.ref(`people/${name}/count`).set(0);
+        console.log('카운트 초기화 완료');
+        
         showToast(`${name}의 카운트가 초기화되었습니다`);
         
         // 모달 새로고침
         showCountManageModal();
     } catch (error) {
         console.error('카운트 초기화 오류:', error);
-        showToast('카운트 초기화 중 오류가 발생했습니다');
+        showToast('카운트 초기화 중 오류가 발생했습니다: ' + error.message);
+    }
+}
+
+// 전체 카운트 초기화 함수 추가
+async function resetAllCounts() {
+    const confirmMessage = `모든 순번의 카운트를 0으로 초기화하시겠습니까?\n\n※ 주의: Firebase people.count 값들만 초기화됩니다.\n실제 개통 기록(activations)은 유지됩니다.`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    try {
+        console.log('전체 카운트 초기화 시작');
+        const peopleList = Object.keys(people);
+        
+        for (const name of peopleList) {
+            await database.ref(`people/${name}/count`).set(0);
+            console.log(`${name} 카운트 초기화 완료`);
+        }
+        
+        showToast(`모든 순번 카운트가 초기화되었습니다 (${peopleList.length}명)`);
+        showCountManageModal();
+    } catch (error) {
+        console.error('전체 카운트 초기화 오류:', error);
+        showToast('전체 카운트 초기화 중 오류가 발생했습니다: ' + error.message);
+    }
+}
+
+// 개통 기록 완전 삭제 함수 추가  
+async function clearAllActivations() {
+    const confirmMessage = `모든 개통 기록을 완전히 삭제하시겠습니까?\n\n※ 위험: 이 작업은 되돌릴 수 없습니다!\n- Firebase activations 데이터 완전 삭제\n- 모든 people.count 초기화\n- 통계 데이터 모두 사라짐`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    const doubleConfirm = confirm('정말로 모든 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다!');
+    if (!doubleConfirm) {
+        return;
+    }
+    
+    try {
+        console.log('모든 개통 기록 삭제 시작');
+        
+        // activations 완전 삭제
+        await database.ref('activations').remove();
+        console.log('activations 삭제 완료');
+        
+        // 모든 people count 초기화
+        const peopleList = Object.keys(people);
+        for (const name of peopleList) {
+            await database.ref(`people/${name}/count`).set(0);
+        }
+        console.log('모든 카운트 초기화 완료');
+        
+        showToast(`모든 개통 기록이 삭제되었습니다`);
+        showCountManageModal();
+    } catch (error) {
+        console.error('개통 기록 삭제 오류:', error);
+        showToast('개통 기록 삭제 중 오류가 발생했습니다: ' + error.message);
     }
 } 
