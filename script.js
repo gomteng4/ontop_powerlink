@@ -961,13 +961,26 @@ async function sendToGoogleSheets(data) {
         saveBtn.textContent = '저장 중...';
         saveBtn.disabled = true;
         
+        // 구글 시트에 정확한 순서로 저장하기 위해 배열로 변환
+        const orderedData = [
+            data.순번담당자,
+            data.고객명,
+            data.개통번호,
+            data.연락번호,
+            data.요금제,
+            data.개통날짜,
+            data.등록시간
+        ];
+        
+        console.log('구글 시트 전송 데이터 (순서 보장):', orderedData);
+        
         const response = await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(orderedData)
         });
         
         showToast('구글 시트에 저장되었습니다!');
