@@ -15,7 +15,7 @@ firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
 // 구글 시트 API URL
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwA1hBxi_PMAvRnDMvm4o3NpTmcmSSuS5qAR3GHLrqwRyhSACVpVn3IJ0dOI6e1nwNLfQ/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwtocHjDAImcrGe4AEd0OhIoWU9723saoqlcXBW2Jv021or8OCCkYfksDZ0j-Uo4JivOQ/exec';
 
 // 전역 변수
 let selectedOrder = '';
@@ -961,18 +961,28 @@ async function sendToGoogleSheets(data) {
         saveBtn.textContent = '저장 중...';
         saveBtn.disabled = true;
         
-        // 구글 시트에 정확한 순서로 저장하기 위해 배열로 변환
-        const orderedData = [
-            data.순번담당자,
-            data.고객명,
-            data.개통번호,
-            data.연락번호,
-            data.요금제,
-            data.개통날짜,
-            data.등록시간
-        ];
+        // 구글 Apps Script에서 처리할 수 있도록 객체 형태로 전송
+        // 키 이름을 명확하게 하여 순서 문제 해결
+        const sheetData = {
+            "순번담당자": data.순번담당자,
+            "고객명": data.고객명,
+            "개통번호": data.개통번호,
+            "연락번호": data.연락번호,
+            "요금제": data.요금제,
+            "개통날짜": data.개통날짜,
+            "등록시간": data.등록시간
+        };
         
-        console.log('구글 시트 전송 데이터 (순서 보장):', orderedData);
+        console.log('구글 시트 전송 데이터:', sheetData);
+        console.log('전송할 각 값들:', {
+            순번담당자: sheetData.순번담당자,
+            고객명: sheetData.고객명,
+            개통번호: sheetData.개통번호,
+            연락번호: sheetData.연락번호,
+            요금제: sheetData.요금제,
+            개통날짜: sheetData.개통날짜,
+            등록시간: sheetData.등록시간
+        });
         
         const response = await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
@@ -980,7 +990,7 @@ async function sendToGoogleSheets(data) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(orderedData)
+            body: JSON.stringify(sheetData)
         });
         
         showToast('구글 시트에 저장되었습니다!');
