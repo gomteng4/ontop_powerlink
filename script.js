@@ -15,7 +15,7 @@ firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
 // 구글 시트 API URL
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwtocHjDAImcrGe4AEd0OhIoWU9723saoqlcXBW2Jv021or8OCCkYfksDZ0j-Uo4JivOQ/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw_I3KpQhi4KC4HgnMXY1DXvDGGd5MinhmWRmpjgdH7NGIuDsuODDcaSVjQuZChQOBRug/exec';
 
 // 전역 변수
 let selectedOrder = '';
@@ -827,9 +827,29 @@ async function resetCurrentTurn() {
 
 // 저장 처리
 async function handleSave() {
+    // 중복 저장 방지
+    if (saveBtn.disabled) {
+        console.log('⚠️ 이미 저장 중입니다. 중복 클릭 무시됨');
+        return;
+    }
+    
     if (!validateForm()) {
         return;
     }
+    
+    // 🔍 상세 디버깅: 각 입력 필드 값 확인
+    console.log('=== 입력 필드 상세 확인 ===');
+    console.log('순번담당자:', selectedOrder);
+    console.log('고객명 필드 존재:', !!customerNameInput);
+    console.log('고객명 값:', customerNameInput ? customerNameInput.value : 'NULL');
+    console.log('개통번호 필드 존재:', !!activationNumberInput);
+    console.log('개통번호 값:', activationNumberInput ? activationNumberInput.value : 'NULL');
+    console.log('연락번호 필드 존재:', !!contactNumberInput);
+    console.log('연락번호 값:', contactNumberInput ? contactNumberInput.value : 'NULL');
+    console.log('요금제 필드 존재:', !!planNameInput);
+    console.log('요금제 값:', planNameInput ? planNameInput.value : 'NULL');
+    console.log('개통날짜 필드 존재:', !!openDateInput);
+    console.log('개통날짜 값:', openDateInput ? openDateInput.value : 'NULL');
     
     const data = {
         순번담당자: selectedOrder,
@@ -842,9 +862,15 @@ async function handleSave() {
     };
     
     try {
-        console.log('저장 시작:', data);
-        console.log('선택된 순번:', selectedOrder);
-        console.log('현재 people 데이터:', people);
+        // 저장 버튼 비활성화 (중복 방지)
+        saveBtn.disabled = true;
+        saveBtn.textContent = '저장 중...';
+        
+        console.log('🚀 최종 저장 데이터:', data);
+        console.log('🔍 데이터 값 검증:');
+        Object.entries(data).forEach(([key, value]) => {
+            console.log(`  ${key}: "${value}" (길이: ${value ? value.length : 0})`);
+        });
         
         // Firebase에 저장
         await database.ref('activations').push(data);
@@ -875,8 +901,12 @@ async function handleSave() {
         resetForm();
         
     } catch (error) {
-        console.error('저장 오류:', error);
+        console.error('💥 저장 오류:', error);
         showToast('저장 중 오류가 발생했습니다: ' + error.message);
+    } finally {
+        // 항상 버튼 다시 활성화
+        saveBtn.disabled = false;
+        saveBtn.textContent = '저장하기';
     }
 }
 
@@ -958,8 +988,6 @@ function resetForm() {
 // 구글 시트 연동 함수
 async function sendToGoogleSheets(data) {
     try {
-        saveBtn.textContent = '저장 중...';
-        saveBtn.disabled = true;
         
         // 구글 Apps Script에서 처리할 수 있도록 객체 형태로 전송
         // 키 이름을 명확하게 하여 순서 문제 해결
@@ -973,34 +1001,38 @@ async function sendToGoogleSheets(data) {
             "등록시간": data.등록시간
         };
         
+        console.log('📊 === 구글 시트 전송 준비 ===');
+        console.log('원본 데이터:', data);
         console.log('구글 시트 전송 데이터:', sheetData);
-        console.log('전송할 각 값들:', {
-            순번담당자: sheetData.순번담당자,
-            고객명: sheetData.고객명,
-            개통번호: sheetData.개통번호,
-            연락번호: sheetData.연락번호,
-            요금제: sheetData.요금제,
-            개통날짜: sheetData.개통날짜,
-            등록시간: sheetData.등록시간
+        console.log('📋 필드별 확인:');
+        Object.entries(sheetData).forEach(([key, value]) => {
+            const isEmpty = !value || value.trim() === '';
+            console.log(`  ${key}: "${value}" ${isEmpty ? '❌ 비어있음!' : '✅'}`);
         });
+        console.log('전송 URL:', GOOGLE_SCRIPT_URL);
         
+        console.log('📡 fetch 요청 시작...');
         const response = await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(sheetData)
         });
         
+        console.log('📡 fetch 응답:', response);
+        console.log('📡 응답 상태:', response.status);
+        
+        // 응답 텍스트 확인
+        const responseText = await response.text();
+        console.log('📡 응답 내용:', responseText);
+        
         showToast('구글 시트에 저장되었습니다!');
+        console.log('✅ 구글 시트 저장 성공');
         
     } catch (error) {
-        console.error('구글 시트 저장 오류:', error);
+        console.error('💥 구글 시트 저장 오류:', error);
         showToast('구글 시트 저장 중 오류가 발생했습니다');
-    } finally {
-        saveBtn.textContent = '저장하기';
-        saveBtn.disabled = false;
     }
 }
 
