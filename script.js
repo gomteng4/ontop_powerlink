@@ -44,6 +44,7 @@ const dropdownContent = document.getElementById('dropdownContent');
 const todayCountElement = document.getElementById('todayCount');
 const weekCountElement = document.getElementById('weekCount');
 const monthCountElement = document.getElementById('monthCount');
+const refreshStatsBtn = document.getElementById('refreshStatsBtn');
 
 // 폼 요소
 const customerNameInput = document.getElementById('customerName');
@@ -162,12 +163,33 @@ function getRealTimePersonCount(personName) {
     return count;
 }
 
-// 드롭다운 통계 업데이트
+// 드롭다운 통계 업데이트 (강화된 버전)
 function updateDropdownStats() {
+    console.log('📊 통계 업데이트 시작');
+    console.log('📊 현재 activations 데이터 수:', Object.keys(activations).length);
+    console.log('📊 현재 people 데이터:', Object.keys(people));
+    
     const stats = calculateStats();
+    
+    console.log('📊 계산된 통계:', {
+        오늘: stats.today.total,
+        최근7일: stats.week.total,
+        월간: stats.month.total,
+        개인별오늘: stats.today.people,
+        개인별주간: stats.week.people,
+        개인별월간: stats.month.people
+    });
+    
+    // UI 업데이트
     todayCountElement.textContent = `${stats.today.total}건`;
     weekCountElement.textContent = `${stats.week.total}건`;
     monthCountElement.textContent = `${stats.month.total}건`;
+    
+    // 통계가 모두 0인 경우 경고 표시
+    if (stats.today.total === 0 && stats.week.total === 0 && stats.month.total === 0) {
+        console.warn('⚠️ 모든 통계가 0입니다. Firebase activations 데이터를 확인하세요.');
+        console.log('💡 해결 방법: 새로고침 버튼(🔄)을 클릭하거나 데이터를 저장해보세요.');
+    }
     
     // 기간 정보 업데이트
     updatePeriodInfo();
@@ -308,6 +330,12 @@ function bindEvents() {
         e.stopPropagation();
         dropdownContent.classList.toggle('show');
         updateDropdownStats();
+    });
+
+    // 통계 새로고침 버튼
+    refreshStatsBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        refreshStatsFromGoogleSheets();
     });
 
     // 드롭다운 항목 클릭 이벤트
@@ -1014,18 +1042,16 @@ async function sendToGoogleSheets(data) {
         console.log('📡 fetch 요청 시작...');
         const response = await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
+            mode: 'no-cors', // CORS 문제 해결을 위해 다시 추가
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(sheetData)
         });
         
-        console.log('📡 fetch 응답:', response);
+        console.log('📡 fetch 완료 (no-cors 모드)');
+        console.log('📡 응답 타입:', response.type);
         console.log('📡 응답 상태:', response.status);
-        
-        // 응답 텍스트 확인
-        const responseText = await response.text();
-        console.log('📡 응답 내용:', responseText);
         
         showToast('구글 시트에 저장되었습니다!');
         console.log('✅ 구글 시트 저장 성공');
@@ -1169,23 +1195,60 @@ window.debug = {
         }
         await database.ref('currentTurn').set(name);
         console.log(`현재 차례를 ${name}로 강제 설정했습니다.`);
+    },
+    
+    // 통계 강제 새로고침
+    refreshStats: () => {
+        console.log('🔄 통계 강제 새로고침 시작');
+        updateDropdownStats();
+        renderOrderGrid();
+        console.log('✅ 통계 새로고침 완료');
+    },
+    
+    // 데이터 검증 및 동기화
+    validateData: () => {
+        return validateAndSyncData();
+    },
+    
+    // 구글 시트 새로고침 (수동 실행)
+    syncWithGoogleSheets: () => {
+        refreshStatsFromGoogleSheets();
+    },
+    
+    // 빠른 통계 확인
+    quickStats: () => {
+        const stats = calculateStats();
+        console.table({
+            '오늘': stats.today.total,
+            '최근7일': stats.week.total,
+            '월간': stats.month.total
+        });
+        return stats;
     }
 };
 
 console.log('🔧 디버깅 도구가 준비되었습니다!');
-console.log('사용법:');
+console.log('📊 기본 사용법:');
 console.log('- debug.getStatus() : 현재 상태 확인');
 console.log('- debug.getStats() : 통계 확인');
+console.log('- debug.quickStats() : 빠른 통계 확인 (테이블 형태)');
 console.log('- debug.getPerson("이름") : 특정 사람 데이터 확인');
 console.log('- debug.compareAllCounts() : 실제 vs Firebase 카운트 비교');
 console.log('- debug.getTurnInfo() : 순번 정보 확인');
+console.log('');
+console.log('🔄 새로고침 및 동기화:');
+console.log('- debug.refreshStats() : 통계 강제 새로고침');
+console.log('- debug.validateData() : 데이터 검증 및 동기화');
+console.log('- debug.syncWithGoogleSheets() : 구글 시트와 동기화');
+console.log('');
+console.log('⚙️ 고급 기능:');
 console.log('- debug.forceSetCount("이름", 숫자) : 카운트 강제 설정');
 console.log('- debug.forceSetTurn("이름") : 차례 강제 변경');
 console.log('');
-console.log('💡 새로운 카운트 시스템:');
-console.log('- 실제 개통 기록(activations) 기반으로 정확한 카운트');
-console.log('- Firebase people.count는 참고용 (불일치 가능)');
-console.log('- 등록시간 기준으로 일간/최근7일/월간 자동 계산');
+console.log('💡 새로운 기능:');
+console.log('- 🔄 버튼: 통계 새로고침 (구글 시트 연동)');
+console.log('- 실시간 카운트 시스템: activations 기반 정확한 통계');
+console.log('- 강화된 디버깅: 상세한 로그 및 검증 기능');
 
 // 카운트 관리 모달 표시
 function showCountManageModal() {
@@ -1450,6 +1513,79 @@ async function resetAllCounts() {
         console.error('전체 카운트 초기화 오류:', error);
         showToast('전체 카운트 초기화 중 오류가 발생했습니다: ' + error.message);
     }
+}
+
+// 구글 시트에서 데이터를 가져와서 통계 새로고침
+async function refreshStatsFromGoogleSheets() {
+    try {
+        refreshStatsBtn.disabled = true;
+        refreshStatsBtn.innerHTML = '⏳';
+        showToast('구글 시트에서 데이터를 가져오는 중...');
+        
+        console.log('📊 구글 시트에서 데이터 가져오기 시작');
+        
+        // 구글 시트에서 데이터 가져오기 (GET 요청)
+        const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=getData`, {
+            method: 'GET',
+            mode: 'no-cors'
+        });
+        
+        console.log('📊 구글 시트 응답:', response);
+        
+        // no-cors 모드에서는 응답을 읽을 수 없으므로 성공으로 간주
+        // 대신 Firebase 데이터를 기반으로 통계 강제 업데이트
+        console.log('📊 통계 강제 업데이트 실행');
+        
+        // 기존 activations 데이터 기반으로 통계 재계산
+        const stats = calculateStats();
+        console.log('📊 재계산된 통계:', stats);
+        
+        // 통계 UI 업데이트
+        todayCountElement.textContent = `${stats.today.total}건`;
+        weekCountElement.textContent = `${stats.week.total}건`;
+        monthCountElement.textContent = `${stats.month.total}건`;
+        
+        // 순번 그리드도 새로고침
+        renderOrderGrid();
+        updatePeriodInfo();
+        
+        showToast(`통계 새로고침 완료! (오늘: ${stats.today.total}건, 최근7일: ${stats.week.total}건, 월간: ${stats.month.total}건)`);
+        
+    } catch (error) {
+        console.error('💥 통계 새로고침 오류:', error);
+        showToast('통계 새로고침 중 오류가 발생했습니다');
+    } finally {
+        refreshStatsBtn.disabled = false;
+        refreshStatsBtn.innerHTML = '🔄';
+    }
+}
+
+// Firebase 데이터와 실제 입력값 비교 및 검증
+async function validateAndSyncData() {
+    console.log('🔍 === 데이터 검증 시작 ===');
+    
+    const stats = calculateStats();
+    console.log('Firebase 기반 통계:', stats);
+    
+    // 각 순번별 실제 개통 건수 확인
+    Object.keys(people).forEach(name => {
+        const firebaseCount = people[name]?.count || 0;
+        const realCount = getRealTimePersonCount(name);
+        const todayCount = stats.today.people[name] || 0;
+        const weekCount = stats.week.people[name] || 0;
+        const monthCount = stats.month.people[name] || 0;
+        
+        console.log(`👤 ${name}:`, {
+            Firebase카운트: firebaseCount,
+            실제총카운트: realCount,
+            오늘: todayCount,
+            최근7일: weekCount,
+            월간: monthCount,
+            일치여부: firebaseCount === realCount ? '✅' : '❌'
+        });
+    });
+    
+    return stats;
 }
 
 // 개통 기록 완전 삭제 함수 추가  

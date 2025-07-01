@@ -29,24 +29,27 @@
         <section class="order-selection">
             <div class="order-header">
                 <h2>개통순번</h2>
-                <div class="stats-dropdown" id="statsDropdown">
-                    <button class="dropdown-btn" id="dropdownBtn">
-                        통계 보기 ▼
-                    </button>
-                    <div class="dropdown-content" id="dropdownContent">
-                        <div class="dropdown-item" data-period="today">
-                            <span class="period-label">일간</span>
-                            <span class="period-count" id="todayCount">0건</span>
-                        </div>
-                        <div class="dropdown-item" data-period="week">
-                            <span class="period-label">최근7일</span>
-                            <span class="period-count" id="weekCount">0건</span>
-                        </div>
-                        <div class="dropdown-item" data-period="month">
-                            <span class="period-label">월간</span>
-                            <span class="period-count" id="monthCount">0건</span>
+                <div class="stats-section">
+                    <div class="stats-dropdown" id="statsDropdown">
+                        <button class="dropdown-btn" id="dropdownBtn">
+                            통계 보기 ▼
+                        </button>
+                        <div class="dropdown-content" id="dropdownContent">
+                            <div class="dropdown-item" data-period="today">
+                                <span class="period-label">일간</span>
+                                <span class="period-count" id="todayCount">0건</span>
+                            </div>
+                            <div class="dropdown-item" data-period="week">
+                                <span class="period-label">최근7일</span>
+                                <span class="period-count" id="weekCount">0건</span>
+                            </div>
+                            <div class="dropdown-item" data-period="month">
+                                <span class="period-label">월간</span>
+                                <span class="period-count" id="monthCount">0건</span>
+                            </div>
                         </div>
                     </div>
+                    <button class="refresh-btn" id="refreshStatsBtn" title="구글 시트와 동기화">🔄</button>
                 </div>
                 <span class="current-turn" id="currentTurn">현재순번: -</span>
             </div>

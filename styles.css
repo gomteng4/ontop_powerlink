@@ -107,11 +107,42 @@ body {
     flex-shrink: 0;
 }
 
+.stats-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    justify-content: center;
+}
+
 .stats-dropdown {
     position: relative;
-    flex: 1;
     display: flex;
     justify-content: center;
+}
+
+.refresh-btn {
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.refresh-btn:hover {
+    background: #e8f5ed;
+    border-color: #03C75A;
+    transform: rotate(180deg);
+}
+
+.refresh-btn:active {
+    transform: rotate(180deg) scale(0.95);
 }
 
 .dropdown-btn {
