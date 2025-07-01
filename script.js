@@ -47,7 +47,8 @@ const monthCountElement = document.getElementById('monthCount');
 
 // 폼 요소
 const customerNameInput = document.getElementById('customerName');
-const phoneNumberInput = document.getElementById('phoneNumber');
+const activationNumberInput = document.getElementById('activationNumber');
+const contactNumberInput = document.getElementById('contactNumber');
 const planNameInput = document.getElementById('planName');
 const openDateInput = document.getElementById('openDate');
 
@@ -240,7 +241,8 @@ function loadFormData() {
     if (formData) {
         const data = JSON.parse(formData);
         customerNameInput.value = data.customerName || '';
-        phoneNumberInput.value = data.phoneNumber || '';
+        activationNumberInput.value = data.activationNumber || '';
+        contactNumberInput.value = data.contactNumber || data.phoneNumber || ''; // 기존 데이터 호환
         planNameInput.value = data.planName || '';
         openDateInput.value = data.openDate || new Date().toISOString().split('T')[0];
     }
@@ -250,7 +252,8 @@ function loadFormData() {
 function saveFormData() {
     const formData = {
         customerName: customerNameInput.value,
-        phoneNumber: phoneNumberInput.value,
+        activationNumber: activationNumberInput.value,
+        contactNumber: contactNumberInput.value,
         planName: planNameInput.value,
         openDate: openDateInput.value,
         selectedOrder: selectedOrder
@@ -281,12 +284,12 @@ function bindEvents() {
     });
     
     // 폼 입력 시 자동 저장
-    [customerNameInput, phoneNumberInput, planNameInput, openDateInput].forEach(input => {
+    [customerNameInput, activationNumberInput, contactNumberInput, planNameInput, openDateInput].forEach(input => {
         input.addEventListener('input', saveFormData);
     });
 
-    // 전화번호 자동 포맷팅
-    phoneNumberInput.addEventListener('input', function(e) {
+    // 연락번호 자동 포맷팅
+    contactNumberInput.addEventListener('input', function(e) {
         let value = e.target.value.replace(/[^0-9]/g, '');
         
         if (value.length <= 3) {
@@ -831,7 +834,8 @@ async function handleSave() {
     const data = {
         순번담당자: selectedOrder,
         고객명: customerNameInput.value.trim(),
-        전화번호: phoneNumberInput.value.trim(),
+        개통번호: activationNumberInput.value.trim(),
+        연락번호: contactNumberInput.value.trim(),
         요금제: planNameInput.value.trim(),
         개통날짜: openDateInput.value,
         등록시간: new Date().toLocaleString('ko-KR')
@@ -901,9 +905,15 @@ function validateForm() {
         return false;
     }
     
-    if (!phoneNumberInput.value.trim()) {
-        showToast('전화번호를 입력해주세요');
-        phoneNumberInput.focus();
+    if (!activationNumberInput.value.trim()) {
+        showToast('개통번호를 입력해주세요');
+        activationNumberInput.focus();
+        return false;
+    }
+    
+    if (!contactNumberInput.value.trim()) {
+        showToast('연락번호를 입력해주세요');
+        contactNumberInput.focus();
         return false;
     }
     
@@ -933,7 +943,8 @@ function saveToHistory(data) {
 // 폼 초기화
 function resetForm() {
     customerNameInput.value = '';
-    phoneNumberInput.value = '';
+    activationNumberInput.value = '';
+    contactNumberInput.value = '';
     planNameInput.value = '';
     setTodayDate();
     selectedOrder = '';
@@ -996,7 +1007,8 @@ function showToast(message) {
 // 페이지 이탈 시 확인
 window.addEventListener('beforeunload', function(e) {
     const hasUnsavedData = customerNameInput.value.trim() || 
-                          phoneNumberInput.value.trim() || 
+                          activationNumberInput.value.trim() ||
+                          contactNumberInput.value.trim() || 
                           planNameInput.value.trim() || 
                           selectedOrder;
     
